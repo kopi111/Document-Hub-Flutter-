@@ -14,7 +14,7 @@ class PolicyDocument {
   factory PolicyDocument.fromGitHub(Map<String, dynamic> json) {
     final name = json['name'] as String;
     final displayName = name.replaceAll('.pdf', '').replaceAll('.docx', '');
-    final category = _categorize(name);
+    final category = categorize(name);
     final downloadUrl = json['download_url'] as String? ?? '';
 
     return PolicyDocument(
@@ -25,7 +25,7 @@ class PolicyDocument {
     );
   }
 
-  static String _categorize(String name) {
+  static String categorize(String name) {
     final upper = name.toUpperCase();
     if (upper.startsWith('NPCJ')) return 'NPCJ';
     if (upper.startsWith('JCF')) return 'JCF';
