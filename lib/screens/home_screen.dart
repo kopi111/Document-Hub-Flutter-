@@ -67,8 +67,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   IconData _categoryIcon(String category) {
     switch (category) {
-      case 'JCF':
+      case 'Force Orders':
         return Icons.shield;
+      case 'JCF Policies':
+        return Icons.policy;
       case 'NPCJ':
         return Icons.school;
       case 'TMMD':
@@ -90,8 +92,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Color _categoryColor(String category, ColorScheme scheme) {
     switch (category) {
-      case 'JCF':
+      case 'Force Orders':
         return scheme.primary;
+      case 'JCF Policies':
+        return Colors.blueGrey;
       case 'NPCJ':
         return Colors.indigo;
       case 'TMMD':
@@ -113,7 +117,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('JCF Document Hub'),
+        title: const Text('Force Policies'),
         backgroundColor: scheme.primaryContainer,
         foregroundColor: scheme.onPrimaryContainer,
         actions: [

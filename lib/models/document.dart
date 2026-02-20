@@ -28,7 +28,7 @@ class PolicyDocument {
   static String categorize(String name) {
     final upper = name.toUpperCase();
     if (upper.startsWith('NPCJ')) return 'NPCJ';
-    if (upper.startsWith('JCF')) return 'JCF';
+    if (upper.startsWith('JCF')) return 'Force Orders';
     if (upper.startsWith('TMMD')) return 'TMMD';
     if (upper.startsWith('PMMD')) return 'PMMD';
     if (upper.startsWith('CIB')) return 'CIB';
@@ -46,7 +46,7 @@ class PolicyDocument {
     if (upper.startsWith('ICT')) return 'ICT';
     if (upper.startsWith('SOP')) return 'SOPs';
     if (upper.startsWith('NATIONAL')) return 'NPCJ';
-    if (upper.contains('JAMAICA_CONSTABULARY') || upper.contains('JAMAICA CONSTABULARY')) return 'JCF';
-    return 'General';
+    if (upper.contains('JAMAICA_CONSTABULARY') || upper.contains('JAMAICA CONSTABULARY')) return 'Force Orders';
+    return 'JCF Policies';
   }
 }
