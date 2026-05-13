@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
+import '../models/news/news_article.dart';
+import '../models/news/news_priority.dart';
 import '../services/github_service.dart';
+import '../services/news/in_memory_news_repository.dart';
+import '../services/news/news_repository.dart';
+import '../widgets/news/home_news_carousel.dart';
 import '../widgets/westops/westops_section.dart';
 import 'about_screen.dart';
 import 'document_list_screen.dart';
+import 'news/news_detail_screen.dart';
+import 'news/news_feed_screen.dart';
 import 'search_results_screen.dart';
 
 const double _tabletBreakpoint = 600;
@@ -17,9 +24,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const int _homeCarouselLimit = 3;
+
   final GitHubService _service = GitHubService();
+  final NewsRepository _newsRepository = InMemoryNewsRepository();
   List<PolicyDocument> _allDocuments = [];
   Map<String, List<PolicyDocument>> _categories = {};
+  List<NewsArticle> _latestNews = const [];
   bool _loading = true;
   String? _error;
 
@@ -29,6 +40,42 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadDocuments();
+    _loadLatestNews();
+  }
+
+  Future<void> _loadLatestNews() async {
+    try {
+      final latest =
+          await _newsRepository.latestArticles(limit: _homeCarouselLimit);
+      if (!mounted) return;
+      setState(() {
+        _latestNews = latest;
+      });
+    } catch (_) {
+      // Home tile is optional UI; swallow failures and leave it empty.
+      if (!mounted) return;
+      setState(() {
+        _latestNews = const [];
+      });
+    }
+  }
+
+  void _openNewsFeed() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewsFeedScreen(repository: _newsRepository),
+      ),
+    );
+  }
+
+  void _openNewsArticle(NewsArticle article) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => NewsDetailScreen(article: article),
+      ),
+    );
   }
 
   Future<void> _loadDocuments() async {
@@ -200,15 +247,23 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPhoneLayout(ColorScheme scheme) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _StatsBanner(
+    return CustomScrollView(
+      slivers: [
+        SliverToBoxAdapter(
+          child: HomeNewsCarousel(
+            articles: _latestNews,
+            onOpenArticle: _openNewsArticle,
+            onViewAll: _openNewsFeed,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: _StatsBanner(
             documentCount: _allDocuments.length,
             categoryCount: _categories.length,
           ),
-          Padding(
+        ),
+        SliverToBoxAdapter(
+          child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: SizedBox(
               width: double.infinity,
@@ -220,7 +275,9 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          const Padding(
+        ),
+        const SliverToBoxAdapter(
+          child: Padding(
             padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Align(
               alignment: Alignment.centerLeft,
@@ -230,36 +287,40 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ),
-          _buildPhoneCategoryGrid(scheme),
-          WestOpsSection(onSelect: _openWestOpsFullScreen),
-        ],
-      ),
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.all(12),
+          sliver: _buildPhoneCategorySliver(scheme),
+        ),
+        SliverToBoxAdapter(
+          child: WestOpsSection(onSelect: _openWestOpsFullScreen),
+        ),
+      ],
     );
   }
 
-  Widget _buildPhoneCategoryGrid(ColorScheme scheme) {
-    return GridView.builder(
-      padding: const EdgeInsets.all(12),
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
+  Widget _buildPhoneCategorySliver(ColorScheme scheme) {
+    return SliverGrid(
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 1.4,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
       ),
-      itemCount: _categories.length,
-      itemBuilder: (context, index) {
-        final entry = _categories.entries.elementAt(index);
-        final color = _categoryColor(entry.key, scheme);
-        return _PhoneCategoryCard(
-          title: entry.key,
-          documentCount: entry.value.length,
-          icon: _categoryIcon(entry.key),
-          color: color,
-          onTap: () => _openCategoryFullScreen(entry.key, entry.value),
-        );
-      },
+      delegate: SliverChildBuilderDelegate(
+        (context, index) {
+          final entry = _categories.entries.elementAt(index);
+          final color = _categoryColor(entry.key, scheme);
+          return _PhoneCategoryCard(
+            title: entry.key,
+            documentCount: entry.value.length,
+            icon: _categoryIcon(entry.key),
+            color: color,
+            onTap: () => _openCategoryFullScreen(entry.key, entry.value),
+          );
+        },
+        childCount: _categories.length,
+      ),
     );
   }
 
@@ -280,6 +341,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 _selectTabletCategory('All Documents', _allDocuments),
             onSelectCategory: _selectTabletCategory,
             onSelectWestOps: _selectTabletWestOps,
+            latestNews: _latestNews,
+            onOpenNewsArticle: _openNewsArticle,
+            onOpenNewsFeed: _openNewsFeed,
           ),
         ),
         const VerticalDivider(width: 1, thickness: 1),
@@ -478,6 +542,9 @@ class _CategorySidebar extends StatelessWidget {
     required this.onSelectAll,
     required this.onSelectCategory,
     required this.onSelectWestOps,
+    required this.latestNews,
+    required this.onOpenNewsArticle,
+    required this.onOpenNewsFeed,
   });
 
   final int documentCount;
@@ -490,6 +557,9 @@ class _CategorySidebar extends StatelessWidget {
   final void Function(String category, List<PolicyDocument> docs)
       onSelectCategory;
   final void Function(WestOpsFeatureSpec spec) onSelectWestOps;
+  final List<NewsArticle> latestNews;
+  final void Function(NewsArticle article) onOpenNewsArticle;
+  final VoidCallback onOpenNewsFeed;
 
   String? get _selectedCategory {
     final current = selection;
@@ -506,6 +576,12 @@ class _CategorySidebar extends StatelessWidget {
     final allSelected = _selectedCategory == 'All Documents';
     return ListView(
       children: [
+        if (latestNews.isNotEmpty)
+          _SidebarNewsSection(
+            articles: latestNews,
+            onOpenArticle: onOpenNewsArticle,
+            onViewAll: onOpenNewsFeed,
+          ),
         _StatsBanner(
           documentCount: documentCount,
           categoryCount: categoryCount,
@@ -545,6 +621,119 @@ class _CategorySidebar extends StatelessWidget {
         ),
       ],
     );
+  }
+}
+
+class _SidebarNewsSection extends StatelessWidget {
+  const _SidebarNewsSection({
+    required this.articles,
+    required this.onOpenArticle,
+    required this.onViewAll,
+  });
+
+  final List<NewsArticle> articles;
+  final void Function(NewsArticle article) onOpenArticle;
+  final VoidCallback onViewAll;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+          child: Row(
+            children: [
+              Icon(Icons.campaign, size: 18, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Latest News',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: scheme.primary,
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              TextButton(
+                onPressed: onViewAll,
+                child: const Text('View all'),
+              ),
+            ],
+          ),
+        ),
+        for (final article in articles)
+          _SidebarNewsTile(
+            article: article,
+            onTap: () => onOpenArticle(article),
+          ),
+        const Divider(height: 1),
+      ],
+    );
+  }
+}
+
+class _SidebarNewsTile extends StatelessWidget {
+  const _SidebarNewsTile({required this.article, required this.onTap});
+
+  final NewsArticle article;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 6,
+              height: 36,
+              margin: const EdgeInsets.only(top: 2, right: 10),
+              decoration: BoxDecoration(
+                color: _accent(scheme),
+                borderRadius: BorderRadius.circular(3),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    article.title,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    article.category,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: scheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _accent(ColorScheme scheme) {
+    return article.priority.isFlagged
+        ? article.priority.foregroundColor(scheme)
+        : scheme.primary;
   }
 }
 

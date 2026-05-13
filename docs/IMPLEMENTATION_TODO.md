@@ -84,6 +84,23 @@ Home-screen integration: `lib/widgets/westops/westops_section.dart` exposes `Wes
 
 ---
 
+## News / Announcements
+
+A "news app" style feed of Force-wide announcements inside the existing Document Hub app. Visual language: hero image, large headline, summary, category chip, relative date, priority badge.
+
+| # | Item | Side | Status | Notes |
+|---|---|---|---|---|
+| N.1 | News feed list screen with hero cards + pull-to-refresh + empty state | Client | UI Done — mock data | `lib/screens/news/news_feed_screen.dart`. Cards in `lib/widgets/news/news_card.dart` use 16:9 `Image.network` heroes with loading + error placeholders, titleLarge headline, 2-line summary, category chip + relative-date footer ("2h ago" / "yesterday" / "5 May 2026"). Breadcrumb `Home > News`. Currently fed by `InMemoryNewsRepository`. |
+| N.2 | News detail screen with markdown body + share placeholder | Client | Done | `lib/screens/news/news_detail_screen.dart`. Hero image, headlineMedium title, priority badge if not normal, author · category · absolute date subtitle row, body rendered with `flutter_markdown`. Breadcrumb `Home > News > {title-truncated}`. Share `IconButton` is wired to a snackbar placeholder — actual sharing is Phase 2. |
+| N.3 | Home tile / latest-news carousel | Client | Done | Phone layout: `HomeNewsCarousel` (`lib/widgets/news/home_news_carousel.dart`) above the stats banner — horizontal `ListView` of three compact image-and-headline cards plus a "View all" button. Tablet layout: `_SidebarNewsSection` at the top of the 300 dp sidebar — three accent-bar list tiles plus "View all" link. Both routes navigate to the feed list or directly to the detail screen. |
+| N.4 | HTTP-backed `NewsRepository` against `/api/v1/news` | Server + Client | Blocked on backend | Abstract `NewsRepository` lives in `lib/services/news/news_repository.dart` with a `TODO` pointing at the future `HttpNewsRepository`. That implementation should reuse the `TokenProvider` + 429 retry plumbing already in `lib/services/api/`. |
+
+Sample data in `lib/services/news/in_memory_news_repository.dart` seeds 8 Jamaica-flavoured articles (Commissioner appoints new Western Operations head, Force Order 12/2026 update, PECC dispatch protocol revision, new constable cohort sworn in, Document Hub pilot, Operation Restore Calm summary, PMMD maintenance window, community policing forum) with a mix of `normal` / `high` / `urgent` priorities and publication dates spanning the past 30 days.
+
+Dependency added in `pubspec.yaml`: `flutter_markdown: ^0.7.4`.
+
+---
+
 ## Dependencies to add (`pubspec.yaml`)
 
 Once the client-side slices start, the following packages will land:
