@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
-import 'home_screen.dart';
-import 'more_screen.dart';
 import 'news/news_feed_screen.dart';
 import 'westops/missing_list_screen.dart';
+import 'westops/stolen_vehicles_list_screen.dart';
 import 'westops/wanted_list_screen.dart';
 
 class AppShell extends StatefulWidget {
@@ -24,11 +23,10 @@ class _AppShellState extends State<AppShell> {
   void initState() {
     super.initState();
     _tabs = [
-      const HomeScreen(),
       NewsFeedScreen(repository: _newsRepository),
       const WantedListScreen(),
       const MissingListScreen(),
-      const MoreScreen(),
+      const StolenVehiclesListScreen(),
     ];
   }
 
@@ -45,11 +43,6 @@ class _AppShellState extends State<AppShell> {
         onDestinationSelected: _selectTab,
         destinations: const [
           NavigationDestination(
-            icon: Icon(Icons.folder_outlined),
-            selectedIcon: Icon(Icons.folder),
-            label: 'Documents',
-          ),
-          NavigationDestination(
             icon: Icon(Icons.campaign_outlined),
             selectedIcon: Icon(Icons.campaign),
             label: 'News',
@@ -65,8 +58,9 @@ class _AppShellState extends State<AppShell> {
             label: 'Missing',
           ),
           NavigationDestination(
-            icon: Icon(Icons.apps),
-            label: 'More',
+            icon: Icon(Icons.directions_car_outlined),
+            selectedIcon: Icon(Icons.directions_car),
+            label: 'Stolen Vehicles',
           ),
         ],
       ),

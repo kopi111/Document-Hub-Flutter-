@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../screens/about_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
+import '../screens/home_screen.dart';
 import '../screens/map/map_screen.dart';
 import '../screens/notes/notes_screen.dart';
-import '../screens/westops/stolen_vehicles_list_screen.dart';
 import '../screens/westops/traffic_codes_list_screen.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -18,6 +18,13 @@ class AppDrawer extends StatelessWidget {
           padding: EdgeInsets.zero,
           children: [
             const _DrawerHeader(),
+            const _SectionLabel('Library'),
+            _Entry(
+              icon: Icons.folder_outlined,
+              label: 'Documents',
+              screen: const HomeScreen(),
+            ),
+            const Divider(),
             const _SectionLabel('Tools'),
             _Entry(
               icon: Icons.event_outlined,
@@ -36,11 +43,6 @@ class AppDrawer extends StatelessWidget {
             ),
             const Divider(),
             const _SectionLabel('Western Operations'),
-            _Entry(
-              icon: Icons.directions_car_outlined,
-              label: 'Stolen Vehicles',
-              screen: const StolenVehiclesListScreen(),
-            ),
             _Entry(
               icon: Icons.traffic_outlined,
               label: 'Traffic Codes',
