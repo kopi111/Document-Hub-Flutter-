@@ -1,0 +1,2115 @@
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+PROPOSAL FOR ADOPTION
+JCF DOCUMENT HUB
+Mobile Access to Force Policies, Force Orders and Standard Operating Procedures
+
+Prepared for
+
+Jamaica Constabulary Force
+Information & Communications Technology Division (ICTD)
+
+Document Control
+Document Title
+
+JCF Document Hub — Proposal for Adoption (Version 2.0)
+
+Version
+
+2.0
+
+Date Issued
+
+13 May 2026
+
+Classification
+
+Confidential — For JCF Internal Review
+
+Status
+
+For Approval
+
+Supersedes
+
+Version 1.0 (22 April 2026)
+
+Contributors
+
+Sgt. Dwayne Aitken, Shevon Robinson, Nicholas Hunter
+
+Email Address
+
+dwayne.aitken@jcf.gov.jm, shevon.robinson@jcf.gov.jm, nicholas.hunter@jcf.gov.jm
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 1
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Table of Contents
+1. Executive Summary
+2. Background and Problem Statement
+3. Proposed Solution
+4. Authentication via JCF Webmail
+5. Access Control Model
+6. Backend API Specification
+7. Benefits to the Force
+8. Security and Risk Considerations
+9. Secure Local Storage Design
+10. Offline and Caching Strategy
+11. User Interface and Experience
+12. Performance and Scalability
+13. Administration, Monitoring and DevOps
+14. Legal and Licensing
+15. Proposed Rollout Plan
+16. Request to JCF
+17. Closing Statement
+Appendix A — Document Categories
+Appendix B — AD Group to Document Access Matrix
+Appendix C — API Endpoint Reference
+Appendix D — Third-Party Library Licences
+Appendix E — Privacy Notice and Data Minimisation Statement
+Appendix F — Glossary
+Appendix G — Application Screenshots
+Note: Sections and appendices shown in green are new or substantially revised in Version 2.0.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 2
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+1. Executive Summary
+The JCF Document Hub is a native Android application that places the Force's policies, Force Orders, and
+Standard Operating Procedures directly in the hands of every serving officer — on duty, off duty, or at home.
+Officers authenticate with their existing @jcf.gov.jm webmail credentials and gain immediate, searchable
+access to the entire policy library on their personal smartphone.
+The application has been designed, built, and tested. It currently indexes 346 documents across 19 categories,
+including Force Orders, divisional SOPs, and national policing policies. This proposal recommends a
+controlled pilot with a single division, followed by Force-wide rollout under ICTD sponsorship.
+Version 2.0 of this proposal expands the original submission to address enterprise security, access control,
+API design, secure local storage, offline conflict handling, scalability, DevOps, and legal considerations
+raised during ICTD technical review. The following table summarises the additions.
+Area
+
+What was added in v2.0
+
+Access control
+
+End-to-end AD group to document mapping; server-side
+enforcement on every API call
+
+Backend API
+
+Full REST endpoint specification, PDF byte-range streaming, audit
+logging schema
+
+Secure local storage
+
+Android Keystore for tokens; encrypted app-private storage for
+cached PDFs; Intune remote wipe integration
+
+Offline & caching
+
+TTL policy, staleness indicators, conflict resolution on update
+
+Performance & scalability
+
+Pagination, CDN strategy, server-side caching, load testing plan
+
+DevOps & monitoring
+
+CI/CD pipeline, crash reporting, API versioning, configuration
+management
+
+Legal & licensing
+
+Third-party library licences, privacy notice, data minimisation
+statement
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 3
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+2. Background and Problem Statement
+Officers across the Jamaica Constabulary Force routinely require access to policy documents to perform their
+duties correctly and lawfully. Examples include:
+• A patrol officer responding to a missing-person report consulting the Missing Person Investigation
+SOP.
+• A station commander preparing a disciplinary review consulting the Administrative Review Policy
+and SOP.
+• A traffic officer requiring the latest Traffic and Mobile Maintenance Division (TMMD) operating
+procedures.
+• A constable preparing for a promotional examination by studying current Force Orders.
+In the current operating environment, accessing these documents typically requires:
+• Physical presence at a station with access to the JCF network.
+• Requesting copies via email from a supervisor or colleague.
+• Reliance on printed binders that risk falling out of date.
+• Searching through informal channels (e.g. WhatsApp threads) for forwarded copies.
+This friction costs officer time, increases the risk of acting on outdated guidance, and prevents officers from
+preparing or studying outside of duty hours. It also poses a security risk: documents circulated informally via
+messaging platforms are outside the Force's control and cannot be versioned, recalled, or access-restricted.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 4
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+3. Proposed Solution
+The JCF Document Hub is a native Android application providing a single, authoritative point of access to all
+Force documentation.
+Feature
+
+Description
+
+Centralised library
+
+All 346 policy documents in one place, organised into 19 categories
+including Force Orders, NPCJ, TMMD, CIB, PMMD, SOPs, PECC,
+PRDB, PMAS, FLPD, FIPT, DWTT, FIBUA, PPMU, ICTD and
+ICT.
+
+Role-based access
+
+Officers see only the document categories their AD security group is
+authorised to access. Access is enforced server-side on every
+request.
+
+Search
+
+Full-text search by title across the entire library or within a specific
+category. Server-side index returns results only from documents the
+caller is authorised to view.
+
+Integrated PDF viewer
+
+Documents open directly within the application — pinch-to-zoom,
+page navigation, text selection, and bookmarks. No third-party
+reader required.
+
+Read-aloud (Text-to-Speech)
+
+Officers may have policy documents read aloud — beneficial during
+commutes, breaks, or for accessibility purposes.
+
+Offline cache
+
+Once a document has been opened, an encrypted copy is stored in
+app-private storage. It remains accessible without an active data
+connection. Cached copies carry a 7-day TTL.
+
+Always current
+
+Documents are served from a single ICTD-controlled source. When
+a policy is updated centrally, every device reflects the new version
+on next refresh or when the cached TTL expires.
+
+Secure local storage
+
+Authentication tokens are stored exclusively in the Android
+Keystore. Cached PDF files are stored in encrypted app-private
+storage, inaccessible to other applications.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 5
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+4. Authentication via JCF Webmail
+The application is gated behind the officer's existing JCF webmail credentials (@jcf.gov.jm). This approach
+delivers significant operational and security advantages.
+
+4.1 Authentication Flow
+Authentication follows the OAuth 2.0 Authorisation Code flow with PKCE, implemented via the Microsoft
+Authentication Library (MSAL) for Android:
+1. The officer taps Sign In. The app generates a PKCE code verifier and challenge.
+2. MSAL redirects to the Microsoft 365 login endpoint for the JCF tenant.
+3. The officer enters their @jcf.gov.jm credentials. Microsoft 365 validates them against Azure Active
+Directory. MFA is enforced by Conditional Access policy.
+4. On successful authentication, Microsoft issues an authorisation code to the app's registered redirect
+URI.
+5. The app exchanges the code (plus PKCE verifier) for an access token and refresh token over HTTPS.
+6. All subsequent API calls carry the access token in the Authorization: Bearer header. The backend
+validates the token against the JCF Microsoft 365 tenant on every request.
+
+4.2 Security Properties
+Property
+
+Implementation
+
+No new password to manage
+
+Officers use credentials they already maintain for @jcf.gov.jm.
+
+No parallel identity system
+
+The JCF Microsoft 365 directory is the single source of truth.
+
+Immediate deprovisioning
+
+Disabling the webmail account automatically revokes application
+access. No separate offboarding step is required.
+
+Domain restriction
+
+Only @jcf.gov.jm addresses may authenticate. All others are
+rejected at the Microsoft 365 tenant level.
+
+MFA enforcement
+
+Microsoft 365 Conditional Access policies enforce multi-factor
+authentication, device compliance, and geo-restrictions
+automatically.
+
+Token storage
+
+Tokens are stored exclusively in the Android Keystore — never in
+SharedPreferences, local databases, or application files. They are not
+accessible to other applications or extractable without device unlock.
+
+Credential transmission
+
+Credentials are entered directly into Microsoft's hosted login page
+over TLS 1.2+. The application itself never sees or stores the
+password.
+
+Certificate requirements
+
+The app enforces TLS 1.2 minimum. Certificate pinning for the JCF
+API backend is applied in production to prevent MITM attacks on
+personal devices that may carry untrusted root CAs.
+
+4.3 Session Management
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 6
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Parameter
+
+Value / Behaviour
+
+Access token TTL
+
+1 hour (set by Microsoft 365 tenant policy).
+
+Refresh token TTL
+
+90 days (set by Microsoft 365 tenant policy). Sliding window —
+resets on each use.
+
+Silent refresh
+
+MSAL silently refreshes the access token in the background before
+expiry. No officer action required during normal use.
+
+Idle timeout
+
+After 30 minutes of inactivity, the app requires the officer to reauthenticate. The offline cache remains accessible; no data is purged
+on idle timeout alone.
+
+Explicit logout
+
+Clears all tokens from Keystore, clears the MSAL cache, and deletes
+all cached PDF files from app-private storage.
+
+Remote wipe
+
+Microsoft Intune can remotely wipe the application or the entire
+device. This clears all tokens and cached documents.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 7
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+5. Access Control Model
+This section is new in Version 2.0. It defines how Active Directory security groups map to document
+categories, how that mapping is enforced on the backend, and how the model is administered.
+
+5.1 Design Principles
+•
+•
+•
+
+•
+
+Access is deny-by-default. An officer who belongs to no relevant AD group sees no documents.
+All access control is enforced server-side on every API request. The client application is never trusted
+to self-report the caller's permissions.
+Group membership is resolved from the Azure AD token claims at request time. The backend does
+not cache group membership beyond a single request cycle unless a short-lived (5-minute) server-side
+cache is configured for performance.
+A nominated Content Owner (see Section 16) maintains the AD group assignments in consultation
+with the relevant division heads.
+
+5.2 AD Group Structure
+A dedicated Entra ID (Azure AD) security group is created for each document category, following the naming
+convention JCF-DocHub-{CATEGORY}. Officers are added to the appropriate groups by the ICTD
+administrator based on their role and division.
+AD Security Group
+
+Document Category
+
+Eligible Officers
+
+JCF-DocHub-General
+
+General (statutes, acts)
+
+All serving officers
+
+JCF-DocHub-JCF
+
+Force Orders, JCF Policies
+
+All serving officers
+
+JCF-DocHub-NPCJ
+
+National Police College of
+Jamaica
+
+Trainees and training staff
+
+JCF-DocHub-TMMD
+
+Traffic & Mobile
+Maintenance Division
+
+TMMD personnel and supervisors
+
+JCF-DocHub-PMMD
+
+Public Morality & Major
+Decency Division
+
+PMMD personnel and supervisors
+
+JCF-DocHub-CIB
+
+Criminal Investigation
+Branch
+
+CIB detectives and supervisors
+
+JCF-DocHub-PECC
+
+Police Emergency
+Communications Centre
+
+PECC operators and supervisors
+
+JCF-DocHub-PRDB
+
+Police Records & Data
+Branch
+
+PRDB personnel and supervisors
+
+JCF-DocHub-PMAS
+
+Property Management &
+Admin Services
+
+PMAS personnel and supervisors
+
+JCF-DocHub-FLPD
+
+Firearm Licensing & Permits
+Department
+
+FLPD personnel and supervisors
+
+JCF-DocHub-FIPT
+
+Firearm Investigation &
+
+FIPT investigators and supervisors
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 8
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+AD Security Group
+
+Document Category
+
+Eligible Officers
+
+Prosecution Team
+JCF-DocHub-DWTT
+
+Detective & Witness
+Testimony Training
+
+CIB detectives and training staff
+
+JCF-DocHub-FIBUA
+
+Fighting in Built-Up Areas
+
+Tactical unit personnel — SSP authorisation
+required
+
+JCF-DocHub-PPMU
+
+Policy & Procedure
+Management Unit
+
+PPMU staff and ICTD administrators
+
+JCF-DocHub-ICTD
+
+ICTD Procedures
+
+ICTD staff and system administrators
+
+JCF-DocHub-ICT
+
+General ICT Guidelines
+
+All serving officers
+
+JCF-DocHub-SOPs
+
+Cross-divisional SOPs
+
+All serving officers
+
+JCF-DocHub-SIMU
+
+Strategic Intelligence
+Management Unit
+
+SIMU personnel — ACP authorisation required
+
+JCF-DocHub-Admin
+
+All categories
+
+ICTD administrators and Content Owner
+
+5.3 Server-Side Enforcement
+On every API request the backend performs the following steps before returning any document data:
+7. Extract the Bearer token from the Authorization header.
+8. Validate the token signature against the JCF Microsoft 365 JWKS endpoint.
+9. Confirm the token has not expired and the audience claim matches the registered application ID.
+10. Extract the groups claim from the validated token. If the claim is missing or empty, return HTTP 403
+Forbidden.
+11. For the requested document or category, look up the required group(s) from the access control
+configuration.
+12. If the caller's groups claim does not include a required group, return HTTP 403 Forbidden. No
+document metadata or content is returned.
+13. If authorised, stream the requested document or return the metadata list.
+The client application is never trusted to communicate its own permission level. Steps 1–6 execute on every
+request, including requests for individual PDF pages.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 9
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+6. Backend API Specification
+This section is new in Version 2.0. It defines the RESTful API surface the mobile application uses to
+communicate with the JCF backend. All endpoints require a valid Bearer token and enforce the access control
+rules described in Section 5.
+
+6.1 Base URL and Versioning
+All endpoints are prefixed with /api/v1/. When a breaking change is required, a new version prefix (e.g.
+/api/v2/) is introduced alongside the existing one, giving clients a documented migration window of at least
+90 days before the old version is retired.
+
+6.2 Authentication Header
+Every request must carry: Authorization: Bearer {access_token}
+Requests without a valid token receive HTTP 401 Unauthorised. Requests with a valid token but insufficient
+group membership receive HTTP 403 Forbidden.
+
+6.3 Endpoint Reference
+Method + Path
+
+Description
+
+Notes
+
+GET /api/v1/categories
+
+List categories the caller is
+authorised to access.
+
+Returns only categories where the caller's AD
+groups match. Response is paginated (default page
+size: 50).
+
+GET
+/api/v1/categories/{id}/docu
+ments
+
+List documents in a
+category.
+
+Paginated. Supports query params: page, page_size
+(max 100), sort (name|date), order (asc|desc).
+
+GET
+/api/v1/documents/search?q=
+{term}
+
+Full-text search across
+authorised documents.
+
+Server-side index filters results to the caller's
+authorised categories. Returns document ID, title,
+category, and excerpt. Never returns content from
+unauthorised documents.
+
+GET
+/api/v1/documents/{id}/meta
+data
+
+Return metadata for a
+single document.
+
+Includes: title, category, file size (bytes), last
+modified date, SHA-256 hash, version number.
+Returns 403 if caller lacks access.
+
+GET
+/api/v1/documents/{id}/cont
+ent
+
+Stream the PDF
+document.
+
+Supports HTTP Range header for byte-range
+requests. Enables progressive loading and
+resumable downloads. Returns Content-Type:
+application/pdf and Content-Disposition: inline.
+
+GET
+/api/v1/documents/{id}/thum
+bnail
+
+Return a JPEG thumbnail
+of the first page.
+
+Generated server-side and cached for 24 hours.
+Max size: 256x256 px.
+
+GET /api/v1/sync/manifest
+
+Return a manifest of all
+authorised documents with
+hash and version.
+
+Used by the app to detect documents that have
+changed since the last sync and trigger cache
+invalidation.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 10
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Method + Path
+
+Description
+
+Notes
+
+POST /api/v1/audit/access
+
+Record a document access
+event.
+
+Called by the app when a document is opened or
+downloaded. Payload: {document_id, event_type,
+timestamp}. Server enriches with caller identity
+from token.
+
+6.4 Rate Limiting
+To prevent abuse and protect the document store, the following rate limits are enforced per authenticated user:
+Limit type
+
+Value
+
+Document list requests
+
+120 requests per minute
+
+Document content (PDF stream)
+
+30 requests per minute
+
+Search requests
+
+30 requests per minute
+
+Thumbnail requests
+
+60 requests per minute
+
+Burst allowance
+
+20 requests above limit before throttling begins
+
+Throttle response
+
+HTTP 429 Too Many Requests with Retry-After header
+
+Bulk download detection
+
+More than 50 distinct document downloads within 10 minutes
+triggers an alert to ICTD. The session is not automatically
+terminated, but the event is flagged for review.
+
+6.5 Audit Logging
+Every document access and download is written to an append-only audit log. The log schema is:
+Field
+
+Description
+
+timestamp
+
+UTC timestamp of the event (ISO 8601).
+
+officer_email
+
+The @jcf.gov.jm address from the validated token.
+
+document_id
+
+Internal document identifier.
+
+document_title
+
+Human-readable title at time of access.
+
+event_type
+
+One of: VIEW, DOWNLOAD, SEARCH, LOGIN, LOGOUT,
+FAILED_AUTH, ACCESS_DENIED.
+
+client_ip
+
+IP address of the request (for anomaly detection).
+
+app_version
+
+Version string of the mobile application.
+
+outcome
+
+SUCCESS or DENIED.
+
+Audit logs are retained for a minimum of 2 years, stored in ICTD-controlled storage, and are not accessible
+from the mobile application. Log access requires separate administrator credentials.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 11
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+7. Benefits to the Force
+7.1 For the Rank-and-File Officer
+•
+•
+•
+•
+
+Study Force Orders at home in preparation for promotional examinations.
+Confirm the correct procedure on scene without leaving the location.
+Access the policy library on personal time, on a personal device, securely.
+Have documents read aloud during commutes (Text-to-Speech feature).
+
+7.2 For Supervisors and Station Commanders
+•
+•
+•
+
+Confidence that every officer holds the current, access-controlled version of every relevant policy.
+Elimination of printing, distribution, and acknowledgement chasing for paper-based policies.
+Simplified onboarding for new officers — the entire authorised policy library is one download away.
+
+7.3 For the Force as an Institution
+•
+•
+•
+•
+
+Measurable reduction in policy-knowledge gaps among serving officers.
+A modern, professional tool that signals investment in officer development and welfare.
+Centralised version control — when a policy changes, every device in the Force updates within 7
+days (cache TTL) or immediately on next connection.
+Full audit trail of document access for compliance and accountability purposes.
+
+7.4 For ICTD
+•
+•
+•
+•
+
+Built on standard, supported technology (Flutter, OAuth 2.0, Microsoft 365, REST).
+No new servers required for the document library — content can be hosted on existing JCF-controlled
+SharePoint.
+Low operational overhead and a clear technology roadmap.
+Monitoring dashboards and crash reporting from day one.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 12
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+8. Security and Risk Considerations
+Version 2.0 expands this section significantly to address server-side enforcement, secure coding requirements,
+and data-at-rest protections.
+Risk / Concern
+
+Likelihood
+
+Mitigation
+
+Unauthorised access
+
+Medium
+
+JCF webmail (Microsoft 365) sign-in restricted to @jcf.gov.jm.
+MFA enforced via Conditional Access. Access denied to officers
+not in the relevant AD group.
+
+Stale access for separated
+officers
+
+High without
+control
+
+Disabling the JCF webmail account immediately revokes token
+validity. The backend rejects any token whose account is
+disabled. No separate offboarding action is required.
+
+Document leakage via
+sharing
+
+Medium
+
+Phase 2 controls: screenshot blocking, share restriction, and perofficer watermarking. In-transit, all content is served over TLS
+1.2+.
+
+Document integrity
+
+Low
+
+Documents served from a single ICTD-controlled source. Officers
+cannot modify or replace documents within the application. Each
+document exposes a SHA-256 hash for integrity verification.
+
+Lost or stolen device
+
+Medium
+
+Re-authentication required after 30-minute idle period. Microsoft
+365 Conditional Access (MFA, device compliance, remote wipe
+via Intune) applies automatically. Cached PDFs are stored
+encrypted; they cannot be read by other apps or extracted without
+device decryption.
+
+MITM attack on personal
+devices
+
+Low
+
+Certificate pinning applied on the JCF API backend. The app
+rejects any TLS certificate not matching the pinned fingerprint.
+
+Path traversal / injection
+attacks
+
+Low
+
+All document IDs are server-issued opaque identifiers (UUIDs).
+The API rejects requests that contain path separators or encoding
+attempts. User-supplied search queries are parameterised and
+never concatenated into file system paths.
+
+Client-side bypass of
+access control
+
+Low
+
+The client application is never trusted to report its own
+permissions. The backend enforces group membership on every
+request independently.
+
+Token theft from device
+
+Low
+
+Tokens are stored exclusively in the Android Keystore, which is
+hardware-backed on modern devices. Extraction without the
+device PIN/biometric is not feasible on non-rooted devices.
+
+Bulk download /
+exfiltration
+
+Low
+
+Rate limiting (Section 6.4) and bulk download alerting (50+
+documents in 10 minutes triggers ICTD alert) are in place. Audit
+logs provide forensic trail.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 13
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+9. Secure Local Storage Design
+This section is new in Version 2.0. It defines how the application stores sensitive data on the officer's personal
+device.
+
+9.1 Authentication Tokens
+Item
+
+Storage approach
+
+Access token
+
+Stored by MSAL in Android Keystore-backed encrypted storage.
+Not accessible to other applications. Cleared on logout.
+
+Refresh token
+
+Stored by MSAL in Android Keystore-backed encrypted storage.
+Cleared on logout.
+
+Officer identity (email)
+
+Stored by MSAL alongside the token cache. Cleared on logout.
+
+No credentials ever stored
+
+The application never stores the officer's password. Credentials are
+entered via Microsoft's hosted login page.
+
+9.2 Cached PDF Files
+Item
+
+Approach
+
+Storage location
+
+App-private internal storage (/data/data/{package}/files/cache/). Not
+accessible to other applications. Not accessible via Android file
+manager without root.
+
+Encryption
+
+Files are encrypted using AES-256-GCM. The encryption key is
+derived from a master key stored in the Android Keystore.
+
+TTL (cache expiry)
+
+7 days from the date of download. Expired files are deleted
+automatically on next app launch.
+
+Version invalidation
+
+When the sync manifest (Section 6.3) indicates a document has been
+updated server-side, the locally cached copy is deleted and refetched on next access.
+
+Logout purge
+
+All cached PDF files are deleted on explicit logout or when the
+Microsoft Intune remote wipe signal is received.
+
+Maximum cache size
+
+500 MB. When this limit is reached, the least-recently-used files are
+evicted first.
+
+9.3 Device Wipe Integration (Intune)
+Where the JCF deploys Intune mobile device management, the application registers with the Intune MAM
+(Mobile Application Management) SDK. This enables:
+• Selective app wipe: ICTD can wipe only the Document Hub data (tokens + cached files) from a
+device without wiping the officer's personal data.
+• Full device wipe: available when the device is enrolled in Intune MDM.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 14
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+•
+
+Conditional Access compliance: devices that fail compliance checks (e.g. rooted device, out-of-date
+OS) are blocked from accessing documents, even with a valid token.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 15
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+10. Offline and Caching Strategy
+This section is new in Version 2.0. It defines how the application behaves when no data connection is
+available and how conflicts between cached and server-side content are resolved.
+
+10.1 What is Cached
+Data type
+
+Caching behaviour
+
+Category list
+
+Cached in-memory on app launch. Refreshed from server on each
+new session. Not persisted to disk.
+
+Document metadata list
+
+Cached in the local database (Room, encrypted) for 24 hours per
+category. Displayed to the officer when offline.
+
+PDF files
+
+Cached to encrypted app-private storage on first open. 7-day TTL.
+Maximum 500 MB total.
+
+Sync manifest
+
+Fetched in the background every 6 hours when the device has
+connectivity. Used to detect updated documents without requiring a
+full re-download.
+
+10.2 Offline Mode Behaviour
+•
+•
+•
+•
+•
+
+When no connection is available, the app displays an Offline banner in the header.
+The officer can browse cached category lists and document metadata.
+Documents previously opened are available in full from the encrypted local cache.
+Documents not previously opened display a Not available offline notice.
+Search operates against the locally cached metadata only; full-text search across PDF content is not
+available offline.
+
+10.3 Conflict Resolution
+When the app re-connects after a period offline, the following process executes:
+14. The app fetches the sync manifest from /api/v1/sync/manifest.
+15. For each cached document, the local SHA-256 hash is compared to the hash in the manifest.
+16. Documents where the hash differs are marked as Updated on server. The cached copy is immediately
+deleted.
+17. When the officer next opens the updated document, the current version is fetched from the server.
+18. A notification is shown: "X document(s) have been updated. Tap to refresh."
+There is no merge or diff operation — policy documents are always authoritative from the server. The
+officer's locally cached copy is replaced in full.
+
+10.4 Staleness Indicators
+The application communicates cache status clearly in the UI:
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 16
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+State
+
+UI indicator
+
+Live (fetched this session)
+
+No indicator — the default state.
+
+Cached (from local storage)
+
+Small "Cached" badge on the document tile. Shows date cached.
+
+Expiring soon (within 24 hours)
+
+"Expiring" badge shown in amber.
+
+Expired (TTL elapsed without reconnect)
+
+Document shown as Not available offline. Cannot be opened.
+
+Updated on server
+
+"Updated" badge shown in red. Cached copy deleted. Re-fetch
+required.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 17
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+11. User Interface and Experience
+This section expands the original application description to address the full file-explorer-like navigation
+model, accessibility requirements, and responsive design.
+
+11.1 Navigation Model
+Element
+
+Description
+
+Home screen
+
+Summary tile (total documents, categories) and category grid.
+Tapping a category opens the document list for that category.
+
+Breadcrumb bar
+
+Displays the current path (e.g. Home > CIB > Documents). Back
+arrow and up-navigation are always visible.
+
+Document list
+
+Searchable, alphabetised list. Supports list view and grid view
+toggle. Documents show title, file size, last modified date, and cache
+status badge.
+
+Context actions
+
+Long-press or three-dot menu on any document reveals: Open,
+Download to cache, Properties (metadata), Share (Phase 2 —
+restricted). Delete from cache is available for locally cached files.
+
+Downloaded files section
+
+Dedicated section in the navigation drawer showing all locally
+cached documents grouped by category, with cache age and expiry.
+
+11.2 Search
+•
+•
+•
+•
+
+Global search bar is always accessible from the toolbar.
+Server-side search queries the document index and returns results filtered to the officer's authorised
+categories. Results are never returned for unauthorised documents.
+Client-side search filters the currently loaded document list in real time as the officer types.
+Search results display: document title, category, file size, and a matched-text excerpt (server-side
+search only).
+
+11.3 Accessibility
+•
+•
+•
+•
+•
+
+All interactive elements have content descriptions for TalkBack (Android screen reader) support.
+Text-to-Speech reads entire PDF documents aloud at the officer's chosen speed.
+Minimum tap target size: 48 x 48 dp, consistent with Android accessibility guidelines.
+The application supports Android system font size scaling.
+Dark mode is supported — the application respects the system-level dark/light preference.
+
+11.4 Responsive Design
+The application is designed for portrait-mode phone use as the primary target. On tablets (screen width > 600
+dp), the layout switches to a two-pane mode: category list on the left, document list on the right. The PDF
+viewer always occupies the full screen.
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 18
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+12. Performance and Scalability
+This section is new in Version 2.0.
+
+12.1 Current Scale
+Metric
+
+Current value
+
+Documents indexed
+
+346
+
+Categories
+
+19
+
+Target concurrent users (pilot)
+
+50–200 (one division)
+
+Target concurrent users (Force-wide)
+
+Up to 500 at peak shift-change times
+
+Average PDF size
+
+Estimated 500 KB–5 MB per document
+
+12.2 Backend Performance Measures
+Measure
+
+Approach
+
+Document list pagination
+
+All list endpoints are paginated (default 50 items, max 100). The app
+uses infinite scroll — additional pages are fetched as the officer
+scrolls.
+
+Server-side AD group caching
+
+Azure AD group lookups are cached server-side with a 5-minute
+TTL per officer identity. This avoids redundant graph API calls on
+each request.
+
+PDF byte-range streaming
+
+PDFs are streamed progressively using HTTP Range requests. The
+PDF viewer renders visible pages immediately without waiting for
+the full file to download.
+
+Thumbnail caching
+
+First-page thumbnails are generated once and cached server-side for
+24 hours. Regenerated only when the document is updated.
+
+CDN / edge caching
+
+Static document content (PDFs and thumbnails) is served via Azure
+CDN. Dynamic API responses (lists, metadata, search) are served
+directly from the application server. Cache-Control headers are set
+appropriately.
+
+SharePoint throttling
+
+If SharePoint is the document store, the backend implements retry
+logic with exponential back-off to handle Microsoft's per-tenant
+throttling limits.
+
+12.3 Load Testing
+Prior to Force-wide rollout (Phase 3), ICTD will conduct a load test simulating 500 concurrent users
+performing typical usage patterns (document list, search, PDF open). Acceptance criteria:
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 19
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+•
+•
+•
+•
+
+P95 response time for document list: under 500 ms.
+P95 time-to-first-byte for PDF stream: under 1 second.
+Zero HTTP 5xx errors under normal load.
+Graceful degradation (HTTP 503 + Retry-After) under extreme load, with no data corruption.
+
+12.4 Scalability Roadmap
+The backend is containerised and deployable on Azure Container Apps or equivalent. Horizontal scaling
+(adding backend instances) is the primary scaling strategy. The stateless API design (all session state is held
+in the token) means any instance can serve any request.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 20
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+13. Administration, Monitoring and DevOps
+This section is new in Version 2.0.
+
+13.1 Configuration Management
+Configuration item
+
+Storage and management
+
+Azure AD tenant ID and application
+(client) ID
+
+Environment variable, injected at build time via the CI/CD pipeline.
+Not hardcoded.
+
+JCF API base URL (dev / staging / prod)
+
+Environment variable, injected at build time.
+
+Certificate pin fingerprint
+
+Compiled into the release build. Requires an app update to rotate.
+
+Feature flags (Phase 2 controls)
+
+Controlled via a remote configuration service (e.g. Azure App
+Configuration). Enables screenshot blocking and watermarking to be
+activated without an app update.
+
+Document access control matrix
+
+Stored in version-controlled configuration on the backend. Changes
+require ICTD administrator approval and are applied without an app
+update.
+
+13.2 Monitoring and Alerting
+Metric / Event
+
+Tooling
+
+API error rates and latency
+
+Azure Application Insights (or equivalent). Dashboard visible to
+ICTD. Alert triggers if P95 latency exceeds 2 seconds or error rate
+exceeds 1%.
+
+Mobile app crashes
+
+Firebase Crashlytics (free tier). Crash reports include stack trace,
+device model, OS version, and app version. No personally
+identifiable data is sent.
+
+Bulk download alerts
+
+Custom alert fires when any officer downloads more than 50 distinct
+documents within 10 minutes (see Section 6.4). Alert sent to ICTD
+duty administrator by email.
+
+Failed authentication attempts
+
+Surfaced via Microsoft 365 Sign-in logs. ICTD can review from the
+Microsoft Entra admin portal.
+
+Certificate pin expiry
+
+Alert 60 days and 30 days before the pinned certificate expires,
+triggering the certificate rotation procedure.
+
+13.3 CI/CD Pipeline
+The application uses a GitHub Actions pipeline (or equivalent) with the following stages:
+19. Build — compile the Flutter application for Android (release mode).
+20. Unit test — run the full Flutter test suite. Build fails if any test fails.
+21. Integration test — run integration tests against the staging API environment.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 21
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+22. Static analysis — Flutter Analyze and a dependency vulnerability scan (e.g. OWASP Dependency
+Check).
+23. Sign — sign the APK with the JCF release keystore. Keystore is stored in the CI secrets vault, not in
+source control.
+24. Distribute (staging) — upload to the internal test track (Google Play Internal Testing or direct MDM
+distribution).
+25. Distribute (production) — promoted manually by ICTD after successful pilot sign-off.
+
+13.4 API Versioning Strategy
+The API follows URI versioning (/api/v1/, /api/v2/). The versioning policy is:
+• Non-breaking changes (adding optional fields, new endpoints) may be made to an existing version
+without a version bump.
+• Breaking changes (removing fields, changing authentication requirements) require a new version
+prefix.
+• Old versions are supported for a minimum of 90 days after the new version is published. The sunset
+date is communicated via the Deprecation: and Sunset: response headers.
+• The mobile app always targets the latest stable API version. Older app versions that target a
+deprecated API receive an X-Api-Deprecated: true response header, and the app displays an in-app
+upgrade prompt.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 22
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+14. Legal and Licensing
+This section is new in Version 2.0.
+
+14.1 Third-Party Library Licences
+The application is built with Flutter 3 and uses the following principal third-party packages. A full licence
+inventory is provided in Appendix D.
+Package / Library
+
+Licence
+
+Flutter SDK (Google)
+
+BSD 3-Clause
+
+flutter_pdfview (or
+syncfusion_flutter_pdfviewer)
+
+Apache 2.0 / Syncfusion Community Licence
+
+MSAL for Android (Microsoft)
+
+MIT
+
+OkHttp (Square)
+
+Apache 2.0
+
+Room (Android Jetpack, Google)
+
+Apache 2.0
+
+EncryptedSharedPreferences (AndroidX
+Security)
+
+Apache 2.0
+
+Firebase Crashlytics (Google)
+
+Apache 2.0 / Google Terms of Service
+
+flutter_tts (Text-to-Speech)
+
+MIT
+
+No package requires the application to be open-sourced or restricts commercial/governmental use. All
+licences are compatible with deployment in a law-enforcement context. Licence texts will be accessible in the
+application's About screen.
+
+14.2 Privacy Notice and Data Minimisation
+The application is deployed on officers' personal devices. The following personal data is processed:
+Data item
+
+Purpose
+
+Retention
+
+Officer email address
+(@jcf.gov.jm)
+
+Authentication; audit log
+identity
+
+Duration of active session. Cleared on logout.
+
+Azure AD access token
+
+API authorisation
+
+Up to 1 hour. Cleared on logout.
+
+Azure AD refresh token
+
+Silent token renewal
+
+Up to 90 days. Cleared on logout.
+
+Document access events
+(audit log)
+
+Security monitoring;
+compliance
+
+2 years. Stored server-side only. Not on device.
+
+Crash reports (Crashlytics)
+
+Bug detection and resolution
+
+90 days. No PII in crash payloads.
+
+Client IP address
+
+Audit logging; anomaly
+detection
+
+2 years. Stored server-side only.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 23
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+The application does not collect: GPS location, device contacts, call logs, SMS messages, biometrics, or any
+data beyond what is listed above. Officers are informed of this data processing via the in-app privacy notice
+displayed at first launch, consistent with the JCF's obligations under the Data Protection Act 2020 (Jamaica).
+
+14.3 End User Licence Agreement (EULA)
+Officers accept a brief EULA at first launch. Key provisions include:
+• The application is provided by the Jamaica Constabulary Force for official use only.
+• Document content accessed via the application is classified and must not be reproduced,
+photographed, or shared outside of authorised JCF channels.
+• The officer consents to audit logging of their document access as described in Section 6.5.
+• The Force reserves the right to remotely wipe application data from the device.
+• Violation of these terms may constitute a disciplinary or criminal offence.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 24
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+15. Proposed Rollout Plan
+Phase
+
+Scope
+
+Duration
+
+1. Pilot
+
+ICTD staff plus one nominated division. JCF webmail sign-in
+enabled. AD group access control active from day one. Feedback
+collected via structured survey.
+
+4 weeks
+
+2. Hardening
+
+Add screenshot blocking, watermarking, audit log review
+dashboard, and load testing based on pilot findings. iOS port
+evaluated if officer demand exists.
+
+3 weeks
+
+3. Force-wide
+release
+
+Distribute via MDM or internal application catalogue. Training note
+circulated. EULA presented on first launch.
+
+2 weeks
+
+4. Ongoing
+operations
+
+ICTD assumes ownership of content updates and AD group
+management. Quarterly application updates. Annual security review
+of access control matrix.
+
+Continuous
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 25
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+16. Request to JCF
+The author respectfully requests the following from the Jamaica Constabulary Force:
+26. Approval in principle. Authorisation to proceed to a controlled pilot.
+27. ICTD sponsorship. Registration of the application within the JCF Microsoft 365 tenant to enable
+webmail-based authentication and creation of the JCF-DocHub-* AD security groups described in
+Section 5.
+28. A nominated Content Owner. Identification of the officer or unit authorised to add, update, and retire
+policy documents and to manage AD group assignments.
+29. A pilot division. Identification of one division willing to use the application for four weeks and
+provide structured feedback.
+30. Intune MAM enrolment. Authorisation to register the application with the JCF Intune tenant to enable
+selective app wipe capability.
+31. Confirmation of SharePoint as document store. Identification of the SharePoint site or document
+library that will serve as the ICTD-controlled document source.
+No financial outlay is requested for the pilot phase. The application has been developed at the author's own
+expense, and the supporting infrastructure is leveraged from systems the Force already operates.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 26
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+17. Closing Statement
+Every serving officer carries a smartphone. Every serving officer is expected to know Force policy. The JCF
+Document Hub closes the gap between those two facts — securely, with access control, with a full audit trail,
+and with a clear technical foundation that ICTD can own, extend, and monitor.
+Version 2.0 of this proposal addresses each technical and governance concern raised during ICTD review.
+The application is ready to pilot.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 27
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Appendix A — Document Categories
+The application currently organises 346 documents across the following 19 categories.
+Category
+
+Description
+
+Force Orders
+
+Documents from JCF Headquarters governing operational conduct.
+
+JCF Policies
+
+General Jamaica Constabulary Force policies and SOPs.
+
+NPCJ
+
+National Police College of Jamaica training and curriculum material.
+
+TMMD
+
+Traffic and Mobile Maintenance Division procedures.
+
+PMMD
+
+Public Morality and Major Decency Division procedures.
+
+CIB
+
+Criminal Investigation Branch procedures and guidelines.
+
+PECC
+
+Police Emergency Communications Centre procedures.
+
+PRDB
+
+Police Records and Data Branch procedures.
+
+PMAS
+
+Property Management and Administration Services procedures.
+
+FLPD
+
+Firearm Licensing and Permits Department procedures.
+
+FIPT
+
+Firearm Investigation and Prosecution Team procedures.
+
+DWTT
+
+Detective and Witness Testimony Training material.
+
+FIBUA
+
+Fighting in Built-Up Areas tactical material. Restricted to tactical
+units.
+
+PPMU
+
+Policy and Procedure Management Unit material.
+
+ICTD
+
+Information and Communications Technology Division procedures.
+
+ICT
+
+General Information and Communications Technology guidelines.
+
+SOPs
+
+Cross-divisional Standard Operating Procedures.
+
+SIMU
+
+Strategic Intelligence Management Unit procedures. Restricted —
+ACP authorisation.
+
+General
+
+Statutes, Acts, and supporting reference material.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 28
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Appendix B — AD Group to Document Access Matrix
+This appendix is new in Version 2.0. It shows which AD security groups are required to access each
+document category. Officers are provisioned into groups by ICTD based on their assignment.
+Read as: an officer must be a member of the listed group to see documents in that category. The JCFDocHub-Admin group grants access to all categories.
+Document Category
+
+Required AD Group(s)
+
+General
+
+JCF-DocHub-General (all officers automatically assigned on
+account creation)
+
+JCF Policies / Force Orders
+
+JCF-DocHub-JCF (all officers automatically assigned on account
+creation)
+
+SOPs
+
+JCF-DocHub-SOPs (all officers automatically assigned on account
+creation)
+
+ICT
+
+JCF-DocHub-ICT (all officers automatically assigned on account
+creation)
+
+NPCJ
+
+JCF-DocHub-NPCJ (assigned by NPCJ registrar on enrolment)
+
+TMMD
+
+JCF-DocHub-TMMD (assigned by TMMD OC on posting)
+
+PMMD
+
+JCF-DocHub-PMMD (assigned by PMMD OC on posting)
+
+CIB
+
+JCF-DocHub-CIB (assigned by CIB commanding officer on
+posting)
+
+PECC
+
+JCF-DocHub-PECC (assigned by PECC supervisor on posting)
+
+PRDB
+
+JCF-DocHub-PRDB (assigned by PRDB officer in charge on
+posting)
+
+PMAS
+
+JCF-DocHub-PMAS (assigned by PMAS officer in charge on
+posting)
+
+FLPD
+
+JCF-DocHub-FLPD (assigned by FLPD officer in charge on
+posting)
+
+FIPT
+
+JCF-DocHub-FIPT (assigned by FIPT team leader on posting)
+
+DWTT
+
+JCF-DocHub-DWTT (assigned by CIB commanding officer — CIB
+officers and training staff only)
+
+FIBUA
+
+JCF-DocHub-FIBUA (requires written authorisation from SSP
+Operations)
+
+PPMU
+
+JCF-DocHub-PPMU (assigned by PPMU head)
+
+ICTD
+
+JCF-DocHub-ICTD (assigned by ICTD director — ICTD staff only)
+
+SIMU
+
+JCF-DocHub-SIMU (requires written authorisation from ACP
+Intelligence)
+
+All categories
+
+JCF-DocHub-Admin (ICTD administrators and nominated Content
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 29
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Document Category
+
+Required AD Group(s)
+Owner only)
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 30
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Appendix C — API Endpoint Reference
+This appendix is new in Version 2.0. It provides a concise summary of all API endpoints for ICTD technical
+review. Full request/response schemas will be published as an OpenAPI 3.0 specification prior to pilot
+commencement.
+Method + Path
+
+Auth required
+
+Description
+
+GET /api/v1/categories
+
+Bearer token
+
+List authorised categories. Paginated.
+
+GET
+/api/v1/categories/{id}/documents
+
+Bearer token
+
+List documents in category. Paginated. Sortable.
+
+GET /api/v1/documents/search?q=
+
+Bearer token
+
+Full-text search. Results filtered to authorised
+categories.
+
+GET
+/api/v1/documents/{id}/metadata
+
+Bearer token
+
+Document metadata: title, size, date, hash, version.
+
+GET
+/api/v1/documents/{id}/content
+
+Bearer token
+
+PDF stream. Supports HTTP Range.
+
+GET
+/api/v1/documents/{id}/thumbnail
+
+Bearer token
+
+First-page JPEG thumbnail (256x256 px, cached
+24 h).
+
+GET /api/v1/sync/manifest
+
+Bearer token
+
+Document hash manifest for offline cache
+invalidation.
+
+POST /api/v1/audit/access
+
+Bearer token
+
+Record a document access event.
+
+All endpoints return JSON (application/json) unless otherwise noted. The /content endpoint returns
+application/pdf. All endpoints return the following error envelope on failure:
+{ "error": "error_code", "message": "Human-readable description", "request_id": "UUID" }
+HTTP Status
+
+Meaning
+
+200 OK
+
+Request succeeded.
+
+206 Partial Content
+
+Byte-range request succeeded (PDF streaming).
+
+400 Bad Request
+
+Malformed request (invalid document ID, missing parameters).
+
+401 Unauthorised
+
+No token or invalid/expired token.
+
+403 Forbidden
+
+Valid token but insufficient group membership.
+
+404 Not Found
+
+Document or category does not exist.
+
+429 Too Many Requests
+
+Rate limit exceeded. Includes Retry-After header.
+
+500 Internal Server Error
+
+Unexpected server error. Logged and alerted automatically.
+
+503 Service Unavailable
+
+Server overloaded. Includes Retry-After header.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 31
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Appendix D — Third-Party Library Licences
+This appendix is new in Version 2.0. All third-party packages used in the application are listed below with
+their licence type and any relevant conditions.
+Package
+
+Licence
+
+Conditions
+
+Flutter SDK (Google)
+
+BSD 3-Clause
+
+Attribution required. No copyleft obligation.
+
+Dart SDK (Google)
+
+BSD 3-Clause
+
+Attribution required. No copyleft obligation.
+
+msal_mobile (Microsoft
+Authentication Library)
+
+MIT
+
+No restrictions on governmental use.
+
+syncfusion_flutter_pdfviewer
+
+Syncfusion
+Community Licence
+
+Free for government/non-profit use with fewer than 5
+developers. ICTD to confirm eligibility. Commercial
+licence available at low cost if required.
+
+flutter_tts (Text-to-Speech)
+
+MIT
+
+No restrictions.
+
+http (Dart HTTP client)
+
+BSD 3-Clause
+
+No restrictions.
+
+flutter_secure_storage
+(Keystore/Keychain wrapper)
+
+BSD 3-Clause
+
+No restrictions.
+
+sqflite (local encrypted
+database)
+
+MIT
+
+No restrictions.
+
+sqflite_cipher (AES-256
+encryption for local DB)
+
+MIT
+
+No restrictions.
+
+firebase_crashlytics (Google)
+
+Apache 2.0 + Google
+ToS
+
+Crash data processed by Google. No PII transmitted.
+See Section 14.2.
+
+provider / riverpod (state
+management)
+
+MIT
+
+No restrictions.
+
+intl (internationalisation)
+
+BSD 3-Clause
+
+No restrictions.
+
+Licence texts are bundled in the application and accessible via Settings > About > Open-source licences.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 32
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Appendix E — Privacy Notice and Data Minimisation Statement
+This appendix is new in Version 2.0. It is intended to serve as the in-app privacy notice shown to officers at
+first launch.
+
+JCF Document Hub — Privacy Notice
+Version 2.0 | Effective: 13 May 2026 | Issued by: Jamaica Constabulary Force (ICTD)
+
+What this application does
+The JCF Document Hub provides serving officers with secure access to Force policies, Force Orders, and
+Standard Operating Procedures on their personal smartphones. It is operated by the Jamaica Constabulary
+Force, Information and Communications Technology Division.
+
+Data we collect and why
+Data
+
+Why we collect it
+
+Where it is stored
+
+Your name @jcf.gov.jm
+email address
+
+To identify you and control your
+access to authorised documents.
+
+On your device (during session only). In
+server-side audit logs for 2 years.
+
+Authentication tokens
+(issued by Microsoft
+365)
+
+To verify your identity on each request
+to our servers.
+
+On your device in Android Keystoreprotected storage. Deleted on logout.
+
+Records of which
+documents you open or
+download
+
+For security monitoring and
+compliance with JCF data governance
+requirements.
+
+On our servers only. Not on your device.
+Retained for 2 years.
+
+Crash reports (if a crash
+occurs)
+
+To identify and fix application defects.
+
+On Google Firebase servers for 90 days.
+No personal information is included.
+
+Data we do not collect
+We do not collect your GPS location, contacts, call logs, SMS messages, photos, biometric data, browsing
+history, or any other data from your device.
+
+Your rights
+Under the Data Protection Act 2020 (Jamaica) you have the right to access the personal data we hold about
+you and to request correction of inaccurate data. To exercise these rights, contact the JCF Data Protection
+Officer at dpo@jcf.gov.jm.
+
+Remote wipe
+By installing and using this application, you acknowledge that the Jamaica Constabulary Force may remotely
+delete application data (documents and tokens) from your device in the event of loss, theft, or separation from
+the Force. This action does not affect your personal data outside the application.
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 33
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Contact
+ICTD Help Desk: ictd@jcf.gov.jm | JCF Data Protection Officer: dpo@jcf.gov.jm
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 34
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Appendix F — Glossary
+Term
+
+Definition
+
+JCF
+
+Jamaica Constabulary Force.
+
+ICTD
+
+Information and Communications Technology Division (of the
+JCF).
+
+SOP
+
+Standard Operating Procedure.
+
+Force Order
+
+An official instruction issued by JCF Headquarters governing
+operational conduct.
+
+OAuth 2.0 / OIDC
+
+Industry-standard protocols for delegated authorisation and
+federated identity.
+
+PKCE
+
+Proof Key for Code Exchange — an extension to OAuth 2.0 that
+prevents authorisation code interception attacks.
+
+MSAL
+
+Microsoft Authentication Library — the official client library for
+signing in to Microsoft 365.
+
+Conditional Access
+
+A Microsoft 365 capability that enforces sign-in policies (MFA,
+device compliance, location restrictions).
+
+Android Keystore
+
+A hardware-backed secure enclave on Android devices for storing
+cryptographic keys. Keys cannot be extracted even by privileged
+applications.
+
+MDM
+
+Mobile Device Management — central management and
+deployment of applications to organisational devices.
+
+MAM
+
+Mobile Application Management — a subset of MDM focused on
+managing application-level data without controlling the whole
+device.
+
+Intune
+
+Microsoft's MDM and endpoint compliance product.
+
+TLS
+
+Transport Layer Security — the cryptographic protocol that secures
+data in transit over HTTPS.
+
+Certificate pinning
+
+A technique where the mobile app is programmed to trust only a
+specific server certificate, preventing MITM attacks even on devices
+with rogue root CAs installed.
+
+TTL
+
+Time to Live — the maximum age of a cached item before it must
+be refreshed from the source.
+
+SHA-256
+
+A cryptographic hash function used to verify document integrity. If
+a document's hash changes, the content has changed.
+
+AES-256-GCM
+
+Advanced Encryption Standard with 256-bit key in Galois/Counter
+Mode — the encryption algorithm used for locally cached PDF files.
+
+REST
+
+Representational State Transfer — an architectural style for
+designing networked APIs using standard HTTP methods.
+
+JWKS
+
+JSON Web Key Set — the public keys published by Microsoft 365
+that the backend uses to verify token signatures.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 35
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Term
+
+Definition
+
+EULA
+
+End User Licence Agreement — the legal agreement an officer
+accepts when first using the application.
+
+CDN
+
+Content Delivery Network — a geographically distributed network
+of servers that caches and serves static content (PDFs, thumbnails)
+close to the user.
+
+CI/CD
+
+Continuous Integration / Continuous Deployment — automated
+pipelines that build, test, and release software.
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 36
+
+JCF Document Hub | Version 2.0 | 13 May 2026
+
+Appendix G — Application Screenshots
+The following screenshots were captured from the production build of the JCF Document Hub application
+running on an Android device. They illustrate the home screen, category navigation, document listings, and
+the integrated PDF viewer.
+Note: Screenshots show Version 1.0 of the application. Version 2.0 will add the following visible UI changes:
+• Offline / Cached / Expiring / Updated badges on document tiles (Section 10.4).
+• Offline banner in the application header when no connection is available.
+• Two-pane layout on tablets (Section 11.4).
+• Privacy notice and EULA displayed at first launch (Section 14.3).
+[Screenshot figures C.1 through C.3 from Version 1.0 are retained here. Updated screenshots will be provided
+prior to pilot commencement.]
+
+JCF Document Hub — Proposal for Adoption | Confidential — For JCF Internal Review | Page | 37
+
+
