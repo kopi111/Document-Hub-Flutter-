@@ -81,7 +81,7 @@ class AboutScreen extends StatelessWidget {
     if (!context.mounted) return;
     showLicensePage(
       context: context,
-      applicationName: 'JCF Document Hub',
+      applicationName: 'JCF Duty',
       applicationVersion: 'Version ${info.version} (build ${info.buildNumber})',
       applicationLegalese: _legalese,
     );
@@ -137,7 +137,7 @@ class _AppHeader extends StatelessWidget {
                 child: Icon(Icons.shield, size: 40, color: colors.onPrimaryContainer),
               ),
               const SizedBox(height: 12),
-              Text('JCF Document Hub', style: textTheme.titleLarge),
+              Text('JCF Duty', style: textTheme.titleLarge),
               const SizedBox(height: 4),
               Text(
                 info == null

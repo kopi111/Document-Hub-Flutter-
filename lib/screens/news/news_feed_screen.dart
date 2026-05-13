@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../../models/news/news_article.dart';
 import '../../services/news/news_repository.dart';
+import 'package:shimmer/shimmer.dart';
+
 import '../../widgets/app_drawer.dart';
 import '../../widgets/breadcrumb_trail.dart';
 import '../../widgets/news/news_card.dart';
@@ -170,12 +172,84 @@ class _NewsLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      children: const [
-        SizedBox(height: 200),
-        Center(child: CircularProgressIndicator()),
-      ],
+    final scheme = Theme.of(context).colorScheme;
+    return Shimmer.fromColors(
+      baseColor: scheme.surfaceContainerHighest,
+      highlightColor: scheme.surface,
+      child: ListView.separated(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        itemCount: 6,
+        separatorBuilder: (_, _) => const Divider(height: 1, thickness: 0.5),
+        itemBuilder: (context, index) => const _NewsCardSkeleton(),
+      ),
+    );
+  }
+}
+
+class _NewsCardSkeleton extends StatelessWidget {
+  const _NewsCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _SkeletonBar(width: 60, height: 11),
+                SizedBox(height: 8),
+                _SkeletonBar(width: double.infinity, height: 16),
+                SizedBox(height: 6),
+                _SkeletonBar(width: 240, height: 16),
+                SizedBox(height: 12),
+                _SkeletonBar(width: 120, height: 11),
+              ],
+            ),
+          ),
+          SizedBox(width: 12),
+          _SkeletonBox(size: 88),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkeletonBar extends StatelessWidget {
+  const _SkeletonBar({required this.width, required this.height});
+  final double width;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  const _SkeletonBox({required this.size});
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+      ),
     );
   }
 }

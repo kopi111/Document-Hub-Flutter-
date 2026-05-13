@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:gap/gap.dart';
+
 import '../models/document.dart';
 import '../models/news/news_article.dart';
 import '../models/news/news_priority.dart';
@@ -6,12 +9,25 @@ import '../services/github_service.dart';
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
 import '../widgets/app_drawer.dart';
+import '../widgets/dashboard/category_card.dart';
+import '../widgets/dashboard/dashboard_section_header.dart';
+import '../widgets/dashboard/dashboard_skeleton.dart';
+import '../widgets/dashboard/duty_stats_row.dart';
+import '../widgets/dashboard/greeting_card.dart';
+import '../widgets/dashboard/quick_action_button.dart';
 import '../widgets/news/home_news_carousel.dart';
 import 'about_screen.dart';
+import 'calendar/calendar_screen.dart';
 import 'document_list_screen.dart';
+import 'map/map_screen.dart';
 import 'news/news_detail_screen.dart';
 import 'news/news_feed_screen.dart';
+import 'notes/notes_screen.dart';
 import 'search_results_screen.dart';
+
+const List<int> _documentsThisWeekMock = [12, 18, 9, 24, 17, 21, 14];
+const List<int> _reminderCountsMock = [1, 0, 2, 1, 3, 0, 2];
+const int _activeRemindersMock = 3;
 
 const double _tabletBreakpoint = 600;
 const double _sidebarWidth = 300;
@@ -189,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text('JCF Document Hub'),
+        title: const Text('JCF Duty'),
         backgroundColor: scheme.primaryContainer,
         foregroundColor: scheme.onPrimaryContainer,
         actions: [
@@ -225,7 +241,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBody(ColorScheme scheme, bool useTabletLayout) {
-    if (_loading) return const _LoadingState();
+    if (_loading) return const DashboardSkeleton();
     if (_error != null) {
       return _ErrorState(message: _error!, onRetry: _loadDocuments);
     }
@@ -234,77 +250,76 @@ class _HomeScreenState extends State<HomeScreen> {
         : _buildPhoneLayout(scheme);
   }
 
-  Widget _buildPhoneLayout(ColorScheme scheme) {
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: HomeNewsCarousel(
-            articles: _latestNews,
-            onOpenArticle: _openNewsArticle,
-            onViewAll: _openNewsFeed,
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: _StatsBanner(
-            documentCount: _allDocuments.length,
-            categoryCount: _categories.length,
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () =>
-                    _openCategoryFullScreen('All Documents', _allDocuments),
-                icon: const Icon(Icons.library_books),
-                label: Text('View All Documents (${_allDocuments.length})'),
-              ),
-            ),
-          ),
-        ),
-        const SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Categories',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.all(12),
-          sliver: _buildPhoneCategorySliver(scheme),
-        ),
-      ],
+  void _openCalendar() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CalendarScreen()),
     );
   }
 
-  Widget _buildPhoneCategorySliver(ColorScheme scheme) {
-    return SliverGrid(
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.4,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      delegate: SliverChildBuilderDelegate(
-        (context, index) {
-          final entry = _categories.entries.elementAt(index);
-          final color = _categoryColor(entry.key, scheme);
-          return _PhoneCategoryCard(
-            title: entry.key,
-            documentCount: entry.value.length,
-            icon: _categoryIcon(entry.key),
-            color: color,
-            onTap: () => _openCategoryFullScreen(entry.key, entry.value),
-          );
-        },
-        childCount: _categories.length,
+  void _openNotes() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const NotesScreen()),
+    );
+  }
+
+  void _openMap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const MapScreen()),
+    );
+  }
+
+  Widget _buildPhoneLayout(ColorScheme scheme) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const GreetingCard(),
+          const Gap(20),
+          _QuickActionsRow(
+            onCalendar: _openCalendar,
+            onNotes: _openNotes,
+            onMap: _openMap,
+            onSearch: _openSearch,
+          ),
+          const Gap(24),
+          const DutyStatsRow(
+            documentsThisWeek: _documentsThisWeekMock,
+            activeRemindersTotal: _activeRemindersMock,
+            reminderCounts: _reminderCountsMock,
+          ),
+          const Gap(24),
+          if (_latestNews.isNotEmpty) ...[
+            DashboardSectionHeader(
+              title: 'Latest from the Force',
+              actionLabel: 'View all',
+              onActionPressed: _openNewsFeed,
+            ),
+            const Gap(8),
+            HomeNewsCarousel(
+              articles: _latestNews,
+              onOpenArticle: _openNewsArticle,
+              onViewAll: _openNewsFeed,
+            ),
+            const Gap(20),
+          ],
+          DashboardSectionHeader(
+            title: 'Library',
+            actionLabel: 'View all',
+            onActionPressed: () =>
+                _openCategoryFullScreen('All Documents', _allDocuments),
+          ),
+          const Gap(12),
+          _CategoriesGrid(
+            categories: _categories,
+            iconFor: _categoryIcon,
+            colorFor: (key) => _categoryColor(key, scheme),
+            onOpenCategory: _openCategoryFullScreen,
+          ),
+        ],
       ),
     );
   }
@@ -345,24 +360,6 @@ class _CategorySelection {
   final String category;
   final List<PolicyDocument> documents;
   const _CategorySelection({required this.category, required this.documents});
-}
-
-class _LoadingState extends StatelessWidget {
-  const _LoadingState();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 16),
-          Text('Loading documents from GitHub...'),
-        ],
-      ),
-    );
-  }
 }
 
 class _ErrorState extends StatelessWidget {
@@ -443,62 +440,103 @@ class _Stat extends StatelessWidget {
   }
 }
 
-class _PhoneCategoryCard extends StatelessWidget {
-  const _PhoneCategoryCard({
-    required this.title,
-    required this.documentCount,
-    required this.icon,
-    required this.color,
-    required this.onTap,
+class _QuickActionsRow extends StatelessWidget {
+  const _QuickActionsRow({
+    required this.onCalendar,
+    required this.onNotes,
+    required this.onMap,
+    required this.onSearch,
   });
 
-  final String title;
-  final int documentCount;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
+  final VoidCallback onCalendar;
+  final VoidCallback onNotes;
+  final VoidCallback onMap;
+  final VoidCallback onSearch;
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 2,
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                color.withValues(alpha: 0.15),
-                color.withValues(alpha: 0.05),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 36, color: color),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: color,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                '$documentCount documents',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-            ],
-          ),
-        ),
+    final actions = <Widget>[
+      QuickActionButton(
+        icon: Icons.event,
+        label: 'Calendar',
+        onPressed: onCalendar,
       ),
+      QuickActionButton(
+        icon: Icons.notes,
+        label: 'Notes',
+        onPressed: onNotes,
+      ),
+      QuickActionButton(
+        icon: Icons.map,
+        label: 'Map',
+        onPressed: onMap,
+      ),
+      QuickActionButton(
+        icon: Icons.search,
+        label: 'Search',
+        onPressed: onSearch,
+      ),
+    ];
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        for (var i = 0; i < actions.length; i++)
+          actions[i]
+              .animate()
+              .fadeIn(duration: 220.ms, delay: (60 * i).ms)
+              .scale(
+                begin: const Offset(0.92, 0.92),
+                end: const Offset(1, 1),
+                duration: 220.ms,
+                delay: (60 * i).ms,
+                curve: Curves.easeOutCubic,
+              ),
+      ],
+    );
+  }
+}
+
+class _CategoriesGrid extends StatelessWidget {
+  const _CategoriesGrid({
+    required this.categories,
+    required this.iconFor,
+    required this.colorFor,
+    required this.onOpenCategory,
+  });
+
+  final Map<String, List<PolicyDocument>> categories;
+  final IconData Function(String) iconFor;
+  final Color Function(String) colorFor;
+  final void Function(String category, List<PolicyDocument> docs)
+      onOpenCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = categories.entries.toList();
+    return GridView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: entries.length,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.4,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemBuilder: (context, index) {
+        final entry = entries[index];
+        final card = CategoryCard(
+          category: entry.key,
+          documentCount: entry.value.length,
+          icon: iconFor(entry.key),
+          tint: colorFor(entry.key),
+          onTap: () => onOpenCategory(entry.key, entry.value),
+        );
+        return card.animate().fadeIn(
+              duration: 220.ms,
+              delay: (50 * index).ms,
+            );
+      },
     );
   }
 }

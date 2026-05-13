@@ -1,4 +1,6 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 
 class NewsHeroImage extends StatelessWidget {
   const NewsHeroImage({
@@ -16,33 +18,23 @@ class NewsHeroImage extends StatelessWidget {
     if (url == null || url.isEmpty) {
       return _NewsImagePlaceholder(category: category);
     }
-    return Image.network(
-      url,
+    return CachedNetworkImage(
+      imageUrl: url,
       fit: BoxFit.cover,
-      loadingBuilder: _buildLoading,
-      errorBuilder: (context, error, stackTrace) =>
-          _NewsImagePlaceholder(category: category),
+      placeholder: (context, _) => _ShimmerPlaceholder(),
+      errorWidget: (context, _, _) => _NewsImagePlaceholder(category: category),
     );
   }
+}
 
-  Widget _buildLoading(
-    BuildContext context,
-    Widget child,
-    ImageChunkEvent? progress,
-  ) {
-    if (progress == null) return child;
-    final total = progress.expectedTotalBytes;
-    final value = total == null
-        ? null
-        : progress.cumulativeBytesLoaded / total;
-    return Container(
-      color: Theme.of(context).colorScheme.surfaceContainerHighest,
-      alignment: Alignment.center,
-      child: SizedBox(
-        height: 28,
-        width: 28,
-        child: CircularProgressIndicator(strokeWidth: 2.5, value: value),
-      ),
+class _ShimmerPlaceholder extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Shimmer.fromColors(
+      baseColor: scheme.surfaceContainerHighest,
+      highlightColor: scheme.surface,
+      child: Container(color: Colors.white),
     );
   }
 }
