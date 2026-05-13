@@ -5,6 +5,7 @@ import '../models/news/news_priority.dart';
 import '../services/github_service.dart';
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
+import '../widgets/app_drawer.dart';
 import '../widgets/news/home_news_carousel.dart';
 import 'about_screen.dart';
 import 'document_list_screen.dart';
@@ -186,6 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final useTabletLayout = width > _tabletBreakpoint;
 
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text('JCF Document Hub'),
         backgroundColor: scheme.primaryContainer,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../widgets/app_drawer.dart';
 import 'about_screen.dart';
 import 'westops/stolen_vehicles_list_screen.dart';
 import 'westops/traffic_codes_list_screen.dart';
@@ -11,6 +12,7 @@ class MoreScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text('More'),
         backgroundColor: colors.primaryContainer,

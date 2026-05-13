@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/westops/missing_person.dart';
 import '../../services/westops/missing_persons_repository.dart';
+import '../../widgets/app_drawer.dart';
 import '../../widgets/breadcrumb_trail.dart';
 import 'missing_detail_screen.dart';
 
@@ -89,6 +90,7 @@ class _MissingListScreenState extends State<MissingListScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text('Missing Persons'),
         backgroundColor: scheme.primaryContainer,

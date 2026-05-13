@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/westops/wanted_person.dart';
 import '../../services/westops/wanted_persons_repository.dart';
+import '../../widgets/app_drawer.dart';
 import '../../widgets/breadcrumb_trail.dart';
 import 'wanted_detail_screen.dart';
 
@@ -89,6 +90,7 @@ class _WantedListScreenState extends State<WantedListScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text('Wanted Persons'),
         backgroundColor: scheme.primaryContainer,

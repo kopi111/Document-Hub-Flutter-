@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/news/news_article.dart';
 import '../../services/news/news_repository.dart';
+import '../../widgets/app_drawer.dart';
 import '../../widgets/breadcrumb_trail.dart';
 import '../../widgets/news/news_card.dart';
 import 'news_detail_screen.dart';
@@ -57,6 +58,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Scaffold(
+      drawer: const AppDrawer(),
       appBar: AppBar(
         title: const Text('JCF Announcements'),
         backgroundColor: scheme.primaryContainer,
