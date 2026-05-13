@@ -24,7 +24,7 @@ Source documents in this repo:
 |---|---|---|---|---|---|
 | 1.1 | §5 | AD security groups (`JCF-DocHub-*`) defined and provisioned | Server | Blocked | Needs ICTD tenant access |
 | 1.2 | §5.3 | Server-side group enforcement on every API request | Server | Blocked | Backend not yet built |
-| 1.3 | §6 | REST endpoints `/api/v1/categories`, `/documents/{id}/content`, etc. | Server | Blocked | Backend not yet built |
+| 1.3 | §6 | REST endpoints `/api/v1/categories`, `/documents/{id}/content`, etc. | Server | In progress | Stub controllers in `backend/JcfDocumentHub.Api/Controllers/` (`CategoriesController`, `DocumentsController`, `SyncController`, `AuditController`). Mongo-backed list/search live; `/documents/{id}/content` and `/thumbnail` return 501 pending TODO 1.4. JWT validation is a dev stub (see `Authentication/DevelopmentJwtBearer.cs`). |
 | 1.4 | §6.3 | PDF byte-range streaming (`Range:` header support) | Server | Blocked | Backend not yet built |
 | 1.5 | §6.5 | Append-only audit log (2-year retention) | Server | Blocked | Backend not yet built |
 | 1.6 | §9.1 | Tokens stored in Android Keystore (not SharedPreferences) | Client | Planned | Add `flutter_secure_storage` or use MSAL's storage |
@@ -45,6 +45,8 @@ Source documents in this repo:
 | 2.7 | §8 | TLS 1.2 minimum + certificate pinning on the API host | Client | Planned | Configure HTTP client + bundle pinned fingerprint |
 | 2.8 | §4.3 | 30-minute idle timeout → silent re-authentication | Client | Done (skeleton) | `lib/widgets/idle_timeout_gate.dart` wraps the app via `MaterialApp.builder` nested inside `OfflineBanner`. Resets a 30-min `Timer` on every pointer-down, and uses `WidgetsBindingObserver` to lock immediately if the app was backgrounded for ≥ 30 min. Shows a full-screen "Session paused" lock with a Resume button. The actual silent re-auth call still needs MSAL — Resume currently just unlocks; the hook point is `_resumeSession()`. |
 | 2.9 | §13.2 | Application Insights for backend latency / error rate | Server | Blocked | Server-side observability |
+| 2.10 | new | WestOps operational endpoints (wanted, missing, stolen vehicles, traffic codes) ported from `~/projects/WestOPs/` | Server | In progress | Stub controllers `WantedController`, `MissingController`, `StolenVehiclesController`, `TrafficCodesController` in `backend/JcfDocumentHub.Api/Controllers/`. Mongo collections seeded from `WestOPs/sql/westapp.sql` via `DatabaseSeeder`. |
+| 2.11 | new | Flutter screens for WestOps lists (wanted/missing/stolen) | Client | Planned | Depends on 2.10 |
 
 ## Priority 3 — Medium (strengthens the document)
 
@@ -62,6 +64,8 @@ Source documents in this repo:
 | 3.9 | Phase 2 | iOS port — Keychain + sandbox + MDM profile | Client | Planned | Defer until officer demand confirmed |
 | 3.10 | §6.3 | First-page thumbnails on document tiles | Client | Planned | Depends on `/api/v1/documents/{id}/thumbnail` |
 | 3.11 | §8 | Screenshot blocking + per-officer watermarking | Client | Planned | Phase 2 hardening |
+| 3.12 | new | Force-wide News feed (CRUD, paginated by published date) | Server | In progress | `NewsController` + `MongoNewsRepository` in `backend/`. Article fields: id, title, summary, body (markdown), imageUrl, category (Force-wide / Operational / ICTD), publishedAt, author, priority (Normal/High/Urgent). Admin gate is a TODO comment until `JCF-DocHub-NewsEditors` AD group exists. |
+| 3.13 | new | Flutter News feed screen on home dashboard | Client | Planned | Depends on 3.12 |
 
 ---
 
