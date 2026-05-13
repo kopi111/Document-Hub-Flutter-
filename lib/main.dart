@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'screens/first_launch_gate.dart';
 import 'services/connectivity_service.dart';
+import 'widgets/idle_timeout_gate.dart';
 import 'widgets/offline_banner.dart';
 
 void main() {
@@ -23,7 +24,9 @@ class DocumentHubApp extends StatelessWidget {
       themeMode: ThemeMode.system,
       builder: (context, child) => OfflineBanner(
         connectivity: connectivity,
-        child: child ?? const SizedBox.shrink(),
+        child: IdleTimeoutGate(
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       home: const FirstLaunchGate(),
     );

@@ -43,7 +43,7 @@ Source documents in this repo:
 | 2.5 | §10.3 | Sync manifest poll (every 6 h) + SHA-256 mismatch → cache invalidate | Client | Planned | Depends on `/api/v1/sync/manifest` |
 | 2.6 | §10.4 | Staleness badges: Cached / Expiring / Updated / Live | Client | Done | `lib/widgets/document_staleness_badge.dart` + `DocumentCacheRepository` interface; backed by `InMemoryDemoDocumentCache` (demo seed) until TODO 2.4 lands the real encrypted cache |
 | 2.7 | §8 | TLS 1.2 minimum + certificate pinning on the API host | Client | Planned | Configure HTTP client + bundle pinned fingerprint |
-| 2.8 | §4.3 | 30-minute idle timeout → silent re-authentication | Client | Planned | App lifecycle hook |
+| 2.8 | §4.3 | 30-minute idle timeout → silent re-authentication | Client | Done (skeleton) | `lib/widgets/idle_timeout_gate.dart` wraps the app via `MaterialApp.builder` nested inside `OfflineBanner`. Resets a 30-min `Timer` on every pointer-down, and uses `WidgetsBindingObserver` to lock immediately if the app was backgrounded for ≥ 30 min. Shows a full-screen "Session paused" lock with a Resume button. The actual silent re-auth call still needs MSAL — Resume currently just unlocks; the hook point is `_resumeSession()`. |
 | 2.9 | §13.2 | Application Insights for backend latency / error rate | Server | Blocked | Server-side observability |
 
 ## Priority 3 — Medium (strengthens the document)
