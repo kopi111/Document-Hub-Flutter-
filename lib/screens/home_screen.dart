@@ -5,6 +5,9 @@ import 'about_screen.dart';
 import 'document_list_screen.dart';
 import 'search_results_screen.dart';
 
+const double _tabletBreakpoint = 600;
+const double _sidebarWidth = 300;
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -18,6 +21,9 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, List<PolicyDocument>> _categories = {};
   bool _loading = true;
   String? _error;
+
+  String? _tabletSelectedCategory;
+  List<PolicyDocument>? _tabletSelectedDocuments;
 
   @override
   void initState() {
@@ -54,7 +60,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openCategory(String category, List<PolicyDocument> docs) {
+  void _openCategoryFullScreen(String category, List<PolicyDocument> docs) {
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -64,6 +70,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _selectTabletCategory(String category, List<PolicyDocument> docs) {
+    setState(() {
+      _tabletSelectedCategory = category;
+      _tabletSelectedDocuments = docs;
+    });
   }
 
   void _handleMenuAction(BuildContext context, _HomeMenuAction action) {
@@ -124,6 +137,8 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final width = MediaQuery.sizeOf(context).width;
+    final useTabletLayout = width > _tabletBreakpoint;
 
     return Scaffold(
       appBar: AppBar(
@@ -158,70 +173,34 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _buildBody(scheme),
+      body: _buildBody(scheme, useTabletLayout),
     );
   }
 
-  Widget _buildBody(ColorScheme scheme) {
-    if (_loading) {
-      return const Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Loading documents from GitHub...'),
-          ],
-        ),
-      );
-    }
-
+  Widget _buildBody(ColorScheme scheme, bool useTabletLayout) {
+    if (_loading) return const _LoadingState();
     if (_error != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.error_outline, size: 64, color: Colors.red),
-              const SizedBox(height: 16),
-              Text(_error!, textAlign: TextAlign.center),
-              const SizedBox(height: 16),
-              ElevatedButton.icon(
-                onPressed: _loadDocuments,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return _ErrorState(message: _error!, onRetry: _loadDocuments);
     }
+    return useTabletLayout
+        ? _buildTabletLayout(scheme)
+        : _buildPhoneLayout(scheme);
+  }
 
+  Widget _buildPhoneLayout(ColorScheme scheme) {
     return Column(
       children: [
-        // Stats banner
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          color: scheme.primaryContainer.withValues(alpha: 0.3),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _statWidget(
-                  '${_allDocuments.length}', 'Documents', Icons.description),
-              _statWidget(
-                  '${_categories.length}', 'Categories', Icons.category),
-            ],
-          ),
+        _StatsBanner(
+          documentCount: _allDocuments.length,
+          categoryCount: _categories.length,
         ),
-        // All Documents button
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
           child: SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: () => _openCategory('All Documents', _allDocuments),
+              onPressed: () =>
+                  _openCategoryFullScreen('All Documents', _allDocuments),
               icon: const Icon(Icons.library_books),
               label: Text('View All Documents (${_allDocuments.length})'),
             ),
@@ -237,68 +216,151 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        // Category grid
+        Expanded(child: _buildPhoneCategoryGrid(scheme)),
+      ],
+    );
+  }
+
+  Widget _buildPhoneCategoryGrid(ColorScheme scheme) {
+    return GridView.builder(
+      padding: const EdgeInsets.all(12),
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 2,
+        childAspectRatio: 1.4,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+      ),
+      itemCount: _categories.length,
+      itemBuilder: (context, index) {
+        final entry = _categories.entries.elementAt(index);
+        final color = _categoryColor(entry.key, scheme);
+        return _PhoneCategoryCard(
+          title: entry.key,
+          documentCount: entry.value.length,
+          icon: _categoryIcon(entry.key),
+          color: color,
+          onTap: () => _openCategoryFullScreen(entry.key, entry.value),
+        );
+      },
+    );
+  }
+
+  Widget _buildTabletLayout(ColorScheme scheme) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          width: _sidebarWidth,
+          child: _CategorySidebar(
+            documentCount: _allDocuments.length,
+            categoryCount: _categories.length,
+            categories: _categories,
+            selectedCategory: _tabletSelectedCategory,
+            iconFor: _categoryIcon,
+            colorFor: (key) => _categoryColor(key, scheme),
+            onSelectAll: () =>
+                _selectTabletCategory('All Documents', _allDocuments),
+            onSelectCategory: _selectTabletCategory,
+          ),
+        ),
+        const VerticalDivider(width: 1, thickness: 1),
         Expanded(
-          child: GridView.builder(
-            padding: const EdgeInsets.all(12),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              childAspectRatio: 1.4,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-            ),
-            itemCount: _categories.length,
-            itemBuilder: (context, index) {
-              final entry = _categories.entries.elementAt(index);
-              final color = _categoryColor(entry.key, scheme);
-              return Card(
-                elevation: 2,
-                clipBehavior: Clip.antiAlias,
-                child: InkWell(
-                  onTap: () => _openCategory(entry.key, entry.value),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          color.withValues(alpha: 0.15),
-                          color.withValues(alpha: 0.05),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(_categoryIcon(entry.key), size: 36, color: color),
-                        const SizedBox(height: 8),
-                        Text(
-                          entry.key,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: color,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${entry.value.length} documents',
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            },
+          child: _TabletCategoryDetail(
+            selectedCategory: _tabletSelectedCategory,
+            documents: _tabletSelectedDocuments,
           ),
         ),
       ],
     );
   }
+}
 
-  Widget _statWidget(String value, String label, IconData icon) {
+enum _HomeMenuAction { about }
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircularProgressIndicator(),
+          SizedBox(height: 16),
+          Text('Loading documents from GitHub...'),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const SizedBox(height: 16),
+            Text(message, textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatsBanner extends StatelessWidget {
+  const _StatsBanner({
+    required this.documentCount,
+    required this.categoryCount,
+  });
+
+  final int documentCount;
+  final int categoryCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      color: scheme.primaryContainer.withValues(alpha: 0.3),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _Stat(value: '$documentCount', label: 'Documents', icon: Icons.description),
+          _Stat(value: '$categoryCount', label: 'Categories', icon: Icons.category),
+        ],
+      ),
+    );
+  }
+}
+
+class _Stat extends StatelessWidget {
+  const _Stat({required this.value, required this.label, required this.icon});
+
+  final String value;
+  final String label;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Icon(icon, size: 28),
@@ -311,4 +373,187 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-enum _HomeMenuAction { about }
+class _PhoneCategoryCard extends StatelessWidget {
+  const _PhoneCategoryCard({
+    required this.title,
+    required this.documentCount,
+    required this.icon,
+    required this.color,
+    required this.onTap,
+  });
+
+  final String title;
+  final int documentCount;
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 2,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                color.withValues(alpha: 0.15),
+                color.withValues(alpha: 0.05),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: 36, color: color),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: color,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$documentCount documents',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CategorySidebar extends StatelessWidget {
+  const _CategorySidebar({
+    required this.documentCount,
+    required this.categoryCount,
+    required this.categories,
+    required this.selectedCategory,
+    required this.iconFor,
+    required this.colorFor,
+    required this.onSelectAll,
+    required this.onSelectCategory,
+  });
+
+  final int documentCount;
+  final int categoryCount;
+  final Map<String, List<PolicyDocument>> categories;
+  final String? selectedCategory;
+  final IconData Function(String) iconFor;
+  final Color Function(String) colorFor;
+  final VoidCallback onSelectAll;
+  final void Function(String category, List<PolicyDocument> docs)
+      onSelectCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final allSelected = selectedCategory == 'All Documents';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _StatsBanner(
+          documentCount: documentCount,
+          categoryCount: categoryCount,
+        ),
+        ListTile(
+          leading: const Icon(Icons.library_books),
+          title: const Text('All Documents'),
+          subtitle: Text('$documentCount documents'),
+          selected: allSelected,
+          onTap: onSelectAll,
+        ),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Text(
+            'CATEGORIES',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.primary,
+                  letterSpacing: 1.2,
+                ),
+          ),
+        ),
+        Expanded(
+          child: ListView.builder(
+            itemCount: categories.length,
+            itemBuilder: (context, index) {
+              final entry = categories.entries.elementAt(index);
+              final selected = selectedCategory == entry.key;
+              return ListTile(
+                leading: Icon(iconFor(entry.key), color: colorFor(entry.key)),
+                title: Text(entry.key),
+                trailing: Text(
+                  '${entry.value.length}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                selected: selected,
+                onTap: () => onSelectCategory(entry.key, entry.value),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _TabletCategoryDetail extends StatelessWidget {
+  const _TabletCategoryDetail({
+    required this.selectedCategory,
+    required this.documents,
+  });
+
+  final String? selectedCategory;
+  final List<PolicyDocument>? documents;
+
+  @override
+  Widget build(BuildContext context) {
+    final category = selectedCategory;
+    final docs = documents;
+    if (category == null || docs == null) {
+      return const _EmptyDetailPlaceholder();
+    }
+    return DocumentListScreen(
+      key: ValueKey(category),
+      title: category,
+      documents: docs,
+    );
+  }
+}
+
+class _EmptyDetailPlaceholder extends StatelessWidget {
+  const _EmptyDetailPlaceholder();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.shield, size: 64, color: scheme.primary.withValues(alpha: 0.6)),
+          const SizedBox(height: 16),
+          Text(
+            'Select a category to view documents',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Choose any category from the left to begin browsing.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
