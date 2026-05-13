@@ -37,7 +37,7 @@ Source documents in this repo:
 |---|---|---|---|---|---|
 | 2.1 | §13.3 | GitHub Actions CI/CD pipeline (build → test → sign → distribute) | DevOps | Planned | Needs JCF release keystore + secrets vault |
 | 2.2 | §13.2 | Firebase Crashlytics integration | Client | Planned | No PII in payloads |
-| 2.3 | §6.4 | Rate-limit handling client-side (HTTP 429 + `Retry-After`) | Client | Planned | Wraps API client |
+| 2.3 | §6, §6.4 | Client-side API layer + HTTP 429 / `Retry-After` retry | Client | Done | `lib/services/api/` — abstract `DocumentHubApiClient` covering all 8 v2 endpoints, concrete `HttpDocumentHubApiClient` with rate-limit retry honouring `Retry-After`, typed `ApiException` hierarchy (Bad/Unauthorised/Forbidden/NotFound/RateLimited/Server/Network/ApiDeprecated), pluggable `TokenProvider` (Null/Static today; MSAL plugs in later), `X-Api-Deprecated` callback. 5 passing unit tests in `test/services/api/`. Not yet wired into UI — separate refactor will replace `GitHubService`. |
 | 2.4 | §10 | Offline mode: cached metadata, encrypted PDF cache, 7-day TTL, 500 MB cap | Client | Planned | Add `sqflite_cipher` or Drift + SQLCipher |
 | 2.4a | §10.2 | Offline banner in app header when no data connection | Client | Done | `lib/widgets/offline_banner.dart` wraps the app via `MaterialApp.builder`; `ConnectivityPlusService` boundary in `lib/services/connectivity_service.dart`; banner exposes `Semantics(liveRegion: true)` so TalkBack announces the transition |
 | 2.5 | §10.3 | Sync manifest poll (every 6 h) + SHA-256 mismatch → cache invalidate | Client | Planned | Depends on `/api/v1/sync/manifest` |
