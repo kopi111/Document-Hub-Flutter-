@@ -7,6 +7,7 @@ import 'package:shimmer/shimmer.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/breadcrumb_trail.dart';
 import '../../widgets/news/news_card.dart';
+import '../../widgets/notifications_bell.dart';
 import 'news_detail_screen.dart';
 
 class NewsFeedScreen extends StatefulWidget {
@@ -65,6 +66,9 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
         title: const Text('JCF Announcements'),
         backgroundColor: scheme.primaryContainer,
         foregroundColor: scheme.onPrimaryContainer,
+        actions: [
+          NotificationsBell(newsRepository: widget.repository),
+        ],
         bottom: BreadcrumbTrail(segments: _breadcrumbSegments()),
       ),
       body: RefreshIndicator(

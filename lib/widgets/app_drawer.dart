@@ -5,6 +5,7 @@ import '../screens/calendar/calendar_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/map/map_screen.dart';
 import '../screens/notes/notes_screen.dart';
+import '../screens/notifications/notifications_screen.dart';
 import '../screens/westops/traffic_codes_list_screen.dart';
 
 class AppDrawer extends StatelessWidget {
@@ -40,6 +41,11 @@ class AppDrawer extends StatelessWidget {
               icon: Icons.map_outlined,
               label: 'Map',
               screen: const MapScreen(),
+            ),
+            _Entry(
+              icon: Icons.notifications_outlined,
+              label: 'Notifications',
+              screen: const NotificationsScreen(),
             ),
             const Divider(),
             const _SectionLabel('Western Operations'),
