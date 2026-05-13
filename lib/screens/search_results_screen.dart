@@ -57,6 +57,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
           if (_searchController.text.isNotEmpty)
             IconButton(
               icon: const Icon(Icons.clear),
+              tooltip: 'Clear search',
               onPressed: () {
                 _searchController.clear();
                 _search('');

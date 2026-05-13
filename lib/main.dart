@@ -13,25 +13,24 @@ class DocumentHubApp extends StatelessWidget {
     return MaterialApp(
       title: 'JCF Document Hub',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1B5E20),
-          brightness: Brightness.light,
-        ),
-        useMaterial3: true,
-        appBarTheme: const AppBarTheme(
-          centerTitle: true,
-          elevation: 2,
-        ),
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1B5E20),
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
+      themeMode: ThemeMode.system,
       home: const FirstLaunchGate(),
+    );
+  }
+
+  ThemeData _buildTheme(Brightness brightness) {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: const Color(0xFF1B5E20),
+      brightness: brightness,
+    );
+    return ThemeData(
+      colorScheme: scheme,
+      useMaterial3: true,
+      materialTapTargetSize: MaterialTapTargetSize.padded,
+      visualDensity: VisualDensity.standard,
+      appBarTheme: const AppBarTheme(centerTitle: true, elevation: 2),
     );
   }
 }

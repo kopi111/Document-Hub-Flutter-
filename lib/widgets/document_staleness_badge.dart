@@ -12,22 +12,55 @@ class DocumentStalenessBadge extends StatelessWidget {
     final palette = _paletteFor(state.status, Theme.of(context).colorScheme);
     if (palette == null) return const SizedBox.shrink();
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: palette.background,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        palette.label,
-        style: TextStyle(
-          color: palette.foreground,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.3,
+    return Semantics(
+      label: _semanticLabel(),
+      excludeSemantics: true,
+      container: true,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: palette.background,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Text(
+          palette.label,
+          style: TextStyle(
+            color: palette.foreground,
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.3,
+          ),
         ),
       ),
     );
+  }
+
+  String _semanticLabel() {
+    final cachedAt = state.cachedAt;
+    switch (state.status) {
+      case DocumentCacheStatus.live:
+        return '';
+      case DocumentCacheStatus.cached:
+        return 'Cached ${_relativeAge(cachedAt)}';
+      case DocumentCacheStatus.expiring:
+        return 'Cache expiring soon, ${_relativeAge(cachedAt)}';
+      case DocumentCacheStatus.expired:
+        return 'Cache expired, not available offline';
+      case DocumentCacheStatus.updated:
+        return 'Server has an updated version';
+    }
+  }
+
+  String _relativeAge(DateTime? cachedAt) {
+    if (cachedAt == null) return '';
+    final delta = DateTime.now().difference(cachedAt);
+    if (delta.inDays >= 1) {
+      return '${delta.inDays} ${delta.inDays == 1 ? 'day' : 'days'} ago';
+    }
+    if (delta.inHours >= 1) {
+      return '${delta.inHours} ${delta.inHours == 1 ? 'hour' : 'hours'} ago';
+    }
+    return 'just now';
   }
 
   _BadgePalette? _paletteFor(DocumentCacheStatus status, ColorScheme scheme) {

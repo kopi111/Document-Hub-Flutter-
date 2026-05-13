@@ -200,11 +200,13 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.zoom_in),
+            tooltip: 'Zoom in',
             onPressed: () =>
                 _controller.zoomLevel = _controller.zoomLevel + 0.25,
           ),
           IconButton(
             icon: const Icon(Icons.zoom_out),
+            tooltip: 'Zoom out',
             onPressed: () {
               if (_controller.zoomLevel > 0.5) {
                 _controller.zoomLevel = _controller.zoomLevel - 0.25;
@@ -262,7 +264,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                 color: scheme.surface,
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
+                    color: Colors.black.withValues(alpha: 0.1),
                     blurRadius: 8,
                     offset: const Offset(0, -2),
                   ),

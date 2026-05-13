@@ -52,7 +52,7 @@ Source documents in this repo:
 | 3.1 | §11 | Breadcrumb navigation + folder drill-down | Client | Planned | Replace current category grid |
 | 3.2 | §11.1 | List/grid view toggle + sort (name/date) + filter | Client | Planned | UI work |
 | 3.3 | §11.2 | Server-side full-text search with authorised-category filtering | Server + Client | Blocked | Backend index + client wiring |
-| 3.4 | §11.3 | Accessibility: TalkBack labels, font scaling, dark mode, 48 dp tap targets | Client | Planned | Audit all widgets |
+| 3.4 | §11.3 | Accessibility: TalkBack labels, font scaling, dark mode, 48 dp tap targets | Client | Done | Tooltips on every icon button; `materialTapTargetSize: padded` + `visualDensity: standard` enforced in theme; `themeMode: system`; `DocumentStalenessBadge` exposes rich `Semantics` labels with relative time; deprecated `.withOpacity` calls migrated to `.withValues(alpha:)` |
 | 3.5 | §11.4 | Two-pane tablet layout (width > 600 dp) | Client | Planned | Responsive layout |
 | 3.6 | §14.2 | In-app privacy notice at first launch | Client | Done | `lib/screens/privacy_notice_screen.dart`, gated by `FirstLaunchGate` |
 | 3.7 | §14.3 | EULA acceptance at first launch | Client | Done | `lib/screens/eula_screen.dart`, accepted-flag persisted via `FirstLaunchPreferences` |

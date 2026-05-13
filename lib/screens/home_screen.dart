@@ -134,10 +134,12 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!_loading)
             IconButton(
               icon: const Icon(Icons.search),
+              tooltip: 'Search documents',
               onPressed: _openSearch,
             ),
           IconButton(
             icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh library',
             onPressed: _loadDocuments,
           ),
           PopupMenuButton<_HomeMenuAction>(
@@ -202,7 +204,7 @@ class _HomeScreenState extends State<HomeScreen> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          color: scheme.primaryContainer.withOpacity(0.3),
+          color: scheme.primaryContainer.withValues(alpha: 0.3),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -257,7 +259,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [color.withOpacity(0.15), color.withOpacity(0.05)],
+                        colors: [
+                          color.withValues(alpha: 0.15),
+                          color.withValues(alpha: 0.05),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
