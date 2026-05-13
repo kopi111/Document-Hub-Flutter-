@@ -51,7 +51,7 @@ Source documents in this repo:
 | # | v2 Section | Item | Side | Status | Notes |
 |---|---|---|---|---|---|
 | 3.1 | §11 | Breadcrumb navigation + folder drill-down | Client | Planned | Replace current category grid |
-| 3.2 | §11.1 | List/grid view toggle + sort (name/date) + filter | Client | Planned | UI work |
+| 3.2 | §11.1 | List/grid view toggle + sort (name/date) | Client | Done | `lib/screens/document_list_screen.dart` adds an AppBar view-mode toggle (list ↔ grid) plus a `PopupMenuButton` sort menu (Name A↔Z, Date newest/oldest). Chosen view + sort persist across launches via `lib/services/document_list_preferences.dart` (keys `document_list_view_mode_v1`, `document_list_sort_order_v1`). Date sort falls back to `DocumentCacheRepository.stateFor(doc).cachedAt` — `live` rows sort last for newest-first and first for oldest-first; a real `lastModified` field requires the backend `/api/v1/documents/{id}/metadata` endpoint (proposal §6.3). Server-side filter chips still pending. |
 | 3.3 | §11.2 | Server-side full-text search with authorised-category filtering | Server + Client | Blocked | Backend index + client wiring |
 | 3.4 | §11.3 | Accessibility: TalkBack labels, font scaling, dark mode, 48 dp tap targets | Client | Done | Tooltips on every icon button; `materialTapTargetSize: padded` + `visualDensity: standard` enforced in theme; `themeMode: system`; `DocumentStalenessBadge` exposes rich `Semantics` labels with relative time; deprecated `.withOpacity` calls migrated to `.withValues(alpha:)` |
 | 3.5 | §11.4 | Two-pane tablet layout (width > 600 dp) | Client | Planned | Responsive layout |
