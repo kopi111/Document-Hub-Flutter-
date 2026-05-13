@@ -3,6 +3,7 @@ import '../models/document.dart';
 import '../models/document_cache_state.dart';
 import '../services/document_cache_repository.dart';
 import '../services/document_list_preferences.dart';
+import '../widgets/breadcrumb_trail.dart';
 import '../widgets/document_staleness_badge.dart';
 import 'pdf_viewer_screen.dart';
 
@@ -155,6 +156,7 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
             itemBuilder: _buildSortMenuItems,
           ),
         ],
+        bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
       ),
       body: Column(
         children: [
@@ -165,6 +167,18 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
         ],
       ),
     );
+  }
+
+  List<BreadcrumbSegment> _breadcrumbSegments(BuildContext context) {
+    return [
+      BreadcrumbSegment(
+        label: 'Home',
+        onTap: Navigator.canPop(context)
+            ? () => Navigator.popUntil(context, (route) => route.isFirst)
+            : null,
+      ),
+      BreadcrumbSegment(label: widget.title),
+    ];
   }
 
   IconData _viewToggleIcon() {

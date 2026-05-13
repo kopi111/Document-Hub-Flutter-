@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
+import '../widgets/breadcrumb_trail.dart';
 import 'pdf_viewer_screen.dart';
 
 class SearchResultsScreen extends StatefulWidget {
@@ -64,6 +65,17 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               },
             ),
         ],
+        bottom: BreadcrumbTrail(
+          segments: [
+            BreadcrumbSegment(
+              label: 'Home',
+              onTap: Navigator.canPop(context)
+                  ? () => Navigator.popUntil(context, (route) => route.isFirst)
+                  : null,
+            ),
+            const BreadcrumbSegment(label: 'Search'),
+          ],
+        ),
       ),
       body: _searchController.text.isEmpty
           ? const Center(

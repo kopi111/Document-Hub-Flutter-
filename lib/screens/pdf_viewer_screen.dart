@@ -5,6 +5,7 @@ import 'package:syncfusion_flutter_pdf/pdf.dart' as pdf;
 import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import '../models/document.dart';
+import '../widgets/breadcrumb_trail.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final PolicyDocument document;
@@ -178,6 +179,22 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
     );
   }
 
+  List<BreadcrumbSegment> _breadcrumbSegments(BuildContext context) {
+    return [
+      BreadcrumbSegment(
+        label: 'Home',
+        onTap: Navigator.canPop(context)
+            ? () => Navigator.popUntil(context, (route) => route.isFirst)
+            : null,
+      ),
+      BreadcrumbSegment(
+        label: widget.document.category,
+        onTap: Navigator.canPop(context) ? () => Navigator.pop(context) : null,
+      ),
+      BreadcrumbSegment(label: widget.document.displayName),
+    ];
+  }
+
   String _speedLabel(double rate) {
     if (rate <= 0.25) return 'Slow';
     if (rate <= 0.5) return 'Normal';
@@ -214,6 +231,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
             },
           ),
         ],
+        bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
       ),
       body: _hasError
           ? Center(
