@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../services/github_service.dart';
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
 import 'news/news_feed_screen.dart';
@@ -28,6 +29,7 @@ class _AppShellState extends State<AppShell> {
       const MissingListScreen(),
       const StolenVehiclesListScreen(),
     ];
+    GitHubService().fetchDocuments().catchError((_) => <Never>[]);
   }
 
   void _selectTab(int index) {
