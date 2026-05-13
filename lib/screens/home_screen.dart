@@ -4,7 +4,6 @@ import 'package:gap/gap.dart';
 
 import '../models/document.dart';
 import '../models/news/news_article.dart';
-import '../models/news/news_priority.dart';
 import '../services/github_service.dart';
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
@@ -272,55 +271,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPhoneLayout(ColorScheme scheme) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const GreetingCard(),
-          const Gap(20),
-          _QuickActionsRow(
-            onCalendar: _openCalendar,
-            onNotes: _openNotes,
-            onMap: _openMap,
-            onSearch: _openSearch,
-          ),
-          const Gap(24),
-          const DutyStatsRow(
-            documentsThisWeek: _documentsThisWeekMock,
-            activeRemindersTotal: _activeRemindersMock,
-            reminderCounts: _reminderCountsMock,
-          ),
-          const Gap(24),
-          if (_latestNews.isNotEmpty) ...[
-            DashboardSectionHeader(
-              title: 'Latest from the Force',
-              actionLabel: 'View all',
-              onActionPressed: _openNewsFeed,
-            ),
-            const Gap(8),
-            HomeNewsCarousel(
-              articles: _latestNews,
-              onOpenArticle: _openNewsArticle,
-              onViewAll: _openNewsFeed,
-            ),
-            const Gap(20),
-          ],
-          DashboardSectionHeader(
-            title: 'Library',
-            actionLabel: 'View all',
-            onActionPressed: () =>
-                _openCategoryFullScreen('All Documents', _allDocuments),
-          ),
-          const Gap(12),
-          _CategoriesGrid(
-            categories: _categories,
-            iconFor: _categoryIcon,
-            colorFor: (key) => _categoryColor(key, scheme),
-            onOpenCategory: _openCategoryFullScreen,
-          ),
-        ],
-      ),
+    return _DutyDashboard(
+      categories: _categories,
+      latestNews: _latestNews,
+      iconFor: _categoryIcon,
+      colorFor: (key) => _categoryColor(key, scheme),
+      onCalendar: _openCalendar,
+      onNotes: _openNotes,
+      onMap: _openMap,
+      onSearch: _openSearch,
+      onOpenNewsArticle: _openNewsArticle,
+      onOpenNewsFeed: _openNewsFeed,
+      onOpenAllDocuments: () =>
+          _openCategoryFullScreen('All Documents', _allDocuments),
+      onOpenCategory: _openCategoryFullScreen,
     );
   }
 
@@ -331,8 +295,6 @@ class _HomeScreenState extends State<HomeScreen> {
         SizedBox(
           width: _sidebarWidth,
           child: _CategorySidebar(
-            documentCount: _allDocuments.length,
-            categoryCount: _categories.length,
             categories: _categories,
             selection: _tabletSelection,
             iconFor: _categoryIcon,
@@ -340,16 +302,135 @@ class _HomeScreenState extends State<HomeScreen> {
             onSelectAll: () =>
                 _selectTabletCategory('All Documents', _allDocuments),
             onSelectCategory: _selectTabletCategory,
-            latestNews: _latestNews,
-            onOpenNewsArticle: _openNewsArticle,
-            onOpenNewsFeed: _openNewsFeed,
           ),
         ),
         const VerticalDivider(width: 1, thickness: 1),
         Expanded(
-          child: _TabletCategoryDetail(selection: _tabletSelection),
+          child: _TabletDetailPane(
+            selection: _tabletSelection,
+            dashboard: _DutyDashboard(
+              categories: _categories,
+              latestNews: _latestNews,
+              iconFor: _categoryIcon,
+              colorFor: (key) => _categoryColor(key, scheme),
+              onCalendar: _openCalendar,
+              onNotes: _openNotes,
+              onMap: _openMap,
+              onSearch: _openSearch,
+              onOpenNewsArticle: _openNewsArticle,
+              onOpenNewsFeed: _openNewsFeed,
+              onOpenAllDocuments: () => _selectTabletCategory(
+                  'All Documents', _allDocuments),
+              onOpenCategory: _selectTabletCategory,
+            ),
+          ),
         ),
       ],
+    );
+  }
+}
+
+class _DutyDashboard extends StatelessWidget {
+  const _DutyDashboard({
+    required this.categories,
+    required this.latestNews,
+    required this.iconFor,
+    required this.colorFor,
+    required this.onCalendar,
+    required this.onNotes,
+    required this.onMap,
+    required this.onSearch,
+    required this.onOpenNewsArticle,
+    required this.onOpenNewsFeed,
+    required this.onOpenAllDocuments,
+    required this.onOpenCategory,
+  });
+
+  final Map<String, List<PolicyDocument>> categories;
+  final List<NewsArticle> latestNews;
+  final IconData Function(String) iconFor;
+  final Color Function(String) colorFor;
+  final VoidCallback onCalendar;
+  final VoidCallback onNotes;
+  final VoidCallback onMap;
+  final VoidCallback onSearch;
+  final void Function(NewsArticle article) onOpenNewsArticle;
+  final VoidCallback onOpenNewsFeed;
+  final VoidCallback onOpenAllDocuments;
+  final void Function(String category, List<PolicyDocument> docs)
+      onOpenCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const GreetingCard(),
+          const Gap(20),
+          _QuickActionsRow(
+            onCalendar: onCalendar,
+            onNotes: onNotes,
+            onMap: onMap,
+            onSearch: onSearch,
+          ),
+          const Gap(24),
+          const DutyStatsRow(
+            documentsThisWeek: _documentsThisWeekMock,
+            activeRemindersTotal: _activeRemindersMock,
+            reminderCounts: _reminderCountsMock,
+          ),
+          const Gap(24),
+          if (latestNews.isNotEmpty) ...[
+            DashboardSectionHeader(
+              title: 'Latest from the Force',
+              actionLabel: 'View all',
+              onActionPressed: onOpenNewsFeed,
+            ),
+            const Gap(8),
+            HomeNewsCarousel(
+              articles: latestNews,
+              onOpenArticle: onOpenNewsArticle,
+              onViewAll: onOpenNewsFeed,
+            ),
+            const Gap(20),
+          ],
+          DashboardSectionHeader(
+            title: 'Library',
+            actionLabel: 'View all',
+            onActionPressed: onOpenAllDocuments,
+          ),
+          const Gap(12),
+          _CategoriesGrid(
+            categories: categories,
+            iconFor: iconFor,
+            colorFor: colorFor,
+            onOpenCategory: onOpenCategory,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TabletDetailPane extends StatelessWidget {
+  const _TabletDetailPane({
+    required this.selection,
+    required this.dashboard,
+  });
+
+  final _CategorySelection? selection;
+  final Widget dashboard;
+
+  @override
+  Widget build(BuildContext context) {
+    final current = selection;
+    if (current == null) return dashboard;
+    return DocumentListScreen(
+      key: ValueKey('category:${current.category}'),
+      title: current.category,
+      documents: current.documents,
     );
   }
 }
@@ -388,54 +469,6 @@ class _ErrorState extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _StatsBanner extends StatelessWidget {
-  const _StatsBanner({
-    required this.documentCount,
-    required this.categoryCount,
-  });
-
-  final int documentCount;
-  final int categoryCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      color: scheme.primaryContainer.withValues(alpha: 0.3),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _Stat(value: '$documentCount', label: 'Documents', icon: Icons.description),
-          _Stat(value: '$categoryCount', label: 'Categories', icon: Icons.category),
-        ],
-      ),
-    );
-  }
-}
-
-class _Stat extends StatelessWidget {
-  const _Stat({required this.value, required this.label, required this.icon});
-
-  final String value;
-  final String label;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Icon(icon, size: 28),
-        const SizedBox(height: 4),
-        Text(value,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-        Text(label, style: Theme.of(context).textTheme.bodySmall),
-      ],
     );
   }
 }
@@ -543,21 +576,14 @@ class _CategoriesGrid extends StatelessWidget {
 
 class _CategorySidebar extends StatelessWidget {
   const _CategorySidebar({
-    required this.documentCount,
-    required this.categoryCount,
     required this.categories,
     required this.selection,
     required this.iconFor,
     required this.colorFor,
     required this.onSelectAll,
     required this.onSelectCategory,
-    required this.latestNews,
-    required this.onOpenNewsArticle,
-    required this.onOpenNewsFeed,
   });
 
-  final int documentCount;
-  final int categoryCount;
   final Map<String, List<PolicyDocument>> categories;
   final _CategorySelection? selection;
   final IconData Function(String) iconFor;
@@ -565,55 +591,61 @@ class _CategorySidebar extends StatelessWidget {
   final VoidCallback onSelectAll;
   final void Function(String category, List<PolicyDocument> docs)
       onSelectCategory;
-  final List<NewsArticle> latestNews;
-  final void Function(NewsArticle article) onOpenNewsArticle;
-  final VoidCallback onOpenNewsFeed;
 
-  String? get _selectedCategory {
-    final current = selection;
-    return current is _CategorySelection ? current.category : null;
-  }
+  String? get _selectedCategory => selection?.category;
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     final allSelected = _selectedCategory == 'All Documents';
+
     return ListView(
+      padding: const EdgeInsets.only(top: 8),
       children: [
-        if (latestNews.isNotEmpty)
-          _SidebarNewsSection(
-            articles: latestNews,
-            onOpenArticle: onOpenNewsArticle,
-            onViewAll: onOpenNewsFeed,
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
+          child: Text(
+            'LIBRARY',
+            style: textTheme.labelSmall?.copyWith(
+              color: colors.primary,
+              letterSpacing: 1.4,
+              fontWeight: FontWeight.w700,
+            ),
           ),
-        _StatsBanner(
-          documentCount: documentCount,
-          categoryCount: categoryCount,
         ),
         ListTile(
-          leading: const Icon(Icons.library_books),
+          leading: Icon(Icons.library_books, color: colors.primary),
           title: const Text('All Documents'),
-          subtitle: Text('$documentCount documents'),
+          trailing: _CountChip(value: _totalDocumentCount(), tint: colors.primary),
           selected: allSelected,
           onTap: onSelectAll,
         ),
-        const Divider(height: 1),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+          child: Divider(height: 1),
+        ),
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
           child: Text(
             'CATEGORIES',
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.primary,
-                  letterSpacing: 1.2,
-                ),
+            style: textTheme.labelSmall?.copyWith(
+              color: colors.primary,
+              letterSpacing: 1.4,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
         for (final entry in categories.entries)
           ListTile(
             leading: Icon(iconFor(entry.key), color: colorFor(entry.key)),
-            title: Text(entry.key),
-            trailing: Text(
-              '${entry.value.length}',
-              style: Theme.of(context).textTheme.bodySmall,
+            title: Text(
+              entry.key,
+              style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
+            ),
+            trailing: _CountChip(
+              value: entry.value.length,
+              tint: colorFor(entry.key),
             ),
             selected: _selectedCategory == entry.key,
             onTap: () => onSelectCategory(entry.key, entry.value),
@@ -621,160 +653,37 @@ class _CategorySidebar extends StatelessWidget {
       ],
     );
   }
-}
 
-class _SidebarNewsSection extends StatelessWidget {
-  const _SidebarNewsSection({
-    required this.articles,
-    required this.onOpenArticle,
-    required this.onViewAll,
-  });
-
-  final List<NewsArticle> articles;
-  final void Function(NewsArticle article) onOpenArticle;
-  final VoidCallback onViewAll;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
-          child: Row(
-            children: [
-              Icon(Icons.campaign, size: 18, color: scheme.primary),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Latest News',
-                  style: textTheme.labelSmall?.copyWith(
-                    color: scheme.primary,
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              TextButton(
-                onPressed: onViewAll,
-                child: const Text('View all'),
-              ),
-            ],
-          ),
-        ),
-        for (final article in articles)
-          _SidebarNewsTile(
-            article: article,
-            onTap: () => onOpenArticle(article),
-          ),
-        const Divider(height: 1),
-      ],
-    );
+  int _totalDocumentCount() {
+    var total = 0;
+    for (final entry in categories.entries) {
+      total += entry.value.length;
+    }
+    return total;
   }
 }
 
-class _SidebarNewsTile extends StatelessWidget {
-  const _SidebarNewsTile({required this.article, required this.onTap});
+class _CountChip extends StatelessWidget {
+  const _CountChip({required this.value, required this.tint});
 
-  final NewsArticle article;
-  final VoidCallback onTap;
+  final int value;
+  final Color tint;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 6,
-              height: 36,
-              margin: const EdgeInsets.only(top: 2, right: 10),
-              decoration: BoxDecoration(
-                color: _accent(scheme),
-                borderRadius: BorderRadius.circular(3),
-              ),
-            ),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    article.title,
-                    style: textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    article.category,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: tint.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
       ),
-    );
-  }
-
-  Color _accent(ColorScheme scheme) {
-    return article.priority.isFlagged
-        ? article.priority.foregroundColor(scheme)
-        : scheme.primary;
-  }
-}
-
-class _TabletCategoryDetail extends StatelessWidget {
-  const _TabletCategoryDetail({required this.selection});
-
-  final _CategorySelection? selection;
-
-  @override
-  Widget build(BuildContext context) {
-    final current = selection;
-    if (current == null) return const _EmptyDetailPlaceholder();
-    return DocumentListScreen(
-      key: ValueKey('category:${current.category}'),
-      title: current.category,
-      documents: current.documents,
-    );
-  }
-}
-
-class _EmptyDetailPlaceholder extends StatelessWidget {
-  const _EmptyDetailPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.shield, size: 64, color: scheme.primary.withValues(alpha: 0.6)),
-          const SizedBox(height: 16),
-          Text(
-            'Select a category to view documents',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Choose any category from the left to begin browsing.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-        ],
+      child: Text(
+        '$value',
+        style: TextStyle(
+          color: tint,
+          fontWeight: FontWeight.w700,
+          fontSize: 12,
+        ),
       ),
     );
   }
