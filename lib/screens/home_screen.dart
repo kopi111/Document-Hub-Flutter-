@@ -6,7 +6,6 @@ import '../services/github_service.dart';
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
 import '../widgets/news/home_news_carousel.dart';
-import '../widgets/westops/westops_section.dart';
 import 'about_screen.dart';
 import 'document_list_screen.dart';
 import 'news/news_detail_screen.dart';
@@ -34,7 +33,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
 
-  _TabletSelection? _tabletSelection;
+  _CategorySelection? _tabletSelection;
 
   @override
   void initState() {
@@ -119,22 +118,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  void _openWestOpsFullScreen(WestOpsFeatureSpec spec) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: spec.builder),
-    );
-  }
-
   void _selectTabletCategory(String category, List<PolicyDocument> docs) {
     setState(() {
       _tabletSelection = _CategorySelection(category: category, documents: docs);
-    });
-  }
-
-  void _selectTabletWestOps(WestOpsFeatureSpec spec) {
-    setState(() {
-      _tabletSelection = _WestOpsSelection(spec: spec);
     });
   }
 
@@ -292,9 +278,6 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.all(12),
           sliver: _buildPhoneCategorySliver(scheme),
         ),
-        SliverToBoxAdapter(
-          child: WestOpsSection(onSelect: _openWestOpsFullScreen),
-        ),
       ],
     );
   }
@@ -340,7 +323,6 @@ class _HomeScreenState extends State<HomeScreen> {
             onSelectAll: () =>
                 _selectTabletCategory('All Documents', _allDocuments),
             onSelectCategory: _selectTabletCategory,
-            onSelectWestOps: _selectTabletWestOps,
             latestNews: _latestNews,
             onOpenNewsArticle: _openNewsArticle,
             onOpenNewsFeed: _openNewsFeed,
@@ -357,22 +339,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
 enum _HomeMenuAction { about }
 
-/// Discriminated union describing what the tablet two-pane detail slot is
-/// currently showing. Subclasses keep the home screen free of flag arguments
-/// or nullable parallel state fields.
-sealed class _TabletSelection {
-  const _TabletSelection();
-}
-
-class _CategorySelection extends _TabletSelection {
+class _CategorySelection {
   final String category;
   final List<PolicyDocument> documents;
   const _CategorySelection({required this.category, required this.documents});
-}
-
-class _WestOpsSelection extends _TabletSelection {
-  final WestOpsFeatureSpec spec;
-  const _WestOpsSelection({required this.spec});
 }
 
 class _LoadingState extends StatelessWidget {
@@ -541,7 +511,6 @@ class _CategorySidebar extends StatelessWidget {
     required this.colorFor,
     required this.onSelectAll,
     required this.onSelectCategory,
-    required this.onSelectWestOps,
     required this.latestNews,
     required this.onOpenNewsArticle,
     required this.onOpenNewsFeed,
@@ -550,13 +519,12 @@ class _CategorySidebar extends StatelessWidget {
   final int documentCount;
   final int categoryCount;
   final Map<String, List<PolicyDocument>> categories;
-  final _TabletSelection? selection;
+  final _CategorySelection? selection;
   final IconData Function(String) iconFor;
   final Color Function(String) colorFor;
   final VoidCallback onSelectAll;
   final void Function(String category, List<PolicyDocument> docs)
       onSelectCategory;
-  final void Function(WestOpsFeatureSpec spec) onSelectWestOps;
   final List<NewsArticle> latestNews;
   final void Function(NewsArticle article) onOpenNewsArticle;
   final VoidCallback onOpenNewsFeed;
@@ -564,11 +532,6 @@ class _CategorySidebar extends StatelessWidget {
   String? get _selectedCategory {
     final current = selection;
     return current is _CategorySelection ? current.category : null;
-  }
-
-  WestOpsFeature? get _selectedWestOps {
-    final current = selection;
-    return current is _WestOpsSelection ? current.spec.feature : null;
   }
 
   @override
@@ -615,10 +578,6 @@ class _CategorySidebar extends StatelessWidget {
             selected: _selectedCategory == entry.key,
             onTap: () => onSelectCategory(entry.key, entry.value),
           ),
-        WestOpsSidebarSection(
-          selectedFeature: _selectedWestOps,
-          onSelect: onSelectWestOps,
-        ),
       ],
     );
   }
@@ -740,25 +699,17 @@ class _SidebarNewsTile extends StatelessWidget {
 class _TabletCategoryDetail extends StatelessWidget {
   const _TabletCategoryDetail({required this.selection});
 
-  final _TabletSelection? selection;
+  final _CategorySelection? selection;
 
   @override
   Widget build(BuildContext context) {
     final current = selection;
     if (current == null) return const _EmptyDetailPlaceholder();
-    switch (current) {
-      case _CategorySelection(:final category, :final documents):
-        return DocumentListScreen(
-          key: ValueKey('category:$category'),
-          title: category,
-          documents: documents,
-        );
-      case _WestOpsSelection(:final spec):
-        return KeyedSubtree(
-          key: ValueKey('westops:${spec.feature.name}'),
-          child: Builder(builder: spec.builder),
-        );
-    }
+    return DocumentListScreen(
+      key: ValueKey('category:${current.category}'),
+      title: current.category,
+      documents: current.documents,
+    );
   }
 }
 
