@@ -4,6 +4,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../models/news/news_article.dart';
 import '../../models/news/news_priority.dart';
 import '../../widgets/breadcrumb_trail.dart';
+import '../../widgets/news/news_category_label.dart';
 import '../../widgets/news/news_date_label.dart';
 import '../../widgets/news/news_hero_image.dart';
 import '../../widgets/news/news_priority_badge.dart';
@@ -15,10 +16,12 @@ class NewsDetailScreen extends StatelessWidget {
 
   static const double _heroAspectRatio = 16 / 9;
   static const int _breadcrumbTitleMaxLength = 28;
+  static const Color _highlightYellow = Color(0xFFFFF59D);
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Announcement'),
@@ -36,18 +39,52 @@ class NewsDetailScreen extends StatelessWidget {
       body: ListView(
         padding: EdgeInsets.zero,
         children: [
-          _HeroSection(article: article, aspectRatio: _heroAspectRatio),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _TitleAndPriority(article: article),
+                Row(
+                  children: [
+                    NewsCategoryLabel(category: article.category),
+                    if (article.priority.isFlagged) ...[
+                      const SizedBox(width: 10),
+                      NewsPriorityBadge(priority: article.priority),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  article.title,
+                  style: textTheme.headlineMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    height: 1.2,
+                  ),
+                ),
                 const SizedBox(height: 12),
                 _AuthorRow(article: article),
                 const SizedBox(height: 20),
-                _BodyMarkdown(body: article.body),
               ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: AspectRatio(
+                aspectRatio: _heroAspectRatio,
+                child: NewsHeroImage(
+                  imageUrl: article.imageUrl,
+                  category: article.category,
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 32),
+            child: _BodyMarkdown(
+              body: article.body,
+              highlightColor: _highlightYellow,
             ),
           ),
         ],
@@ -86,51 +123,6 @@ class NewsDetailScreen extends StatelessWidget {
   }
 }
 
-class _HeroSection extends StatelessWidget {
-  const _HeroSection({required this.article, required this.aspectRatio});
-
-  final NewsArticle article;
-  final double aspectRatio;
-
-  @override
-  Widget build(BuildContext context) {
-    return AspectRatio(
-      aspectRatio: aspectRatio,
-      child: NewsHeroImage(
-        imageUrl: article.imageUrl,
-        category: article.category,
-      ),
-    );
-  }
-}
-
-class _TitleAndPriority extends StatelessWidget {
-  const _TitleAndPriority({required this.article});
-
-  final NewsArticle article;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (article.priority.isFlagged) ...[
-          NewsPriorityBadge(priority: article.priority),
-          const SizedBox(height: 10),
-        ],
-        Text(
-          article.title,
-          style: textTheme.headlineMedium?.copyWith(
-            fontWeight: FontWeight.w800,
-            height: 1.2,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _AuthorRow extends StatelessWidget {
   const _AuthorRow({required this.article});
 
@@ -150,13 +142,6 @@ class _AuthorRow extends StatelessWidget {
           style: textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.w600,
             color: scheme.onSurface,
-          ),
-        ),
-        _Dot(),
-        Text(
-          article.category,
-          style: textTheme.bodyMedium?.copyWith(
-            color: scheme.primary,
           ),
         ),
         _Dot(),
@@ -186,38 +171,34 @@ class _Dot extends StatelessWidget {
 }
 
 class _BodyMarkdown extends StatelessWidget {
-  const _BodyMarkdown({required this.body});
+  const _BodyMarkdown({required this.body, required this.highlightColor});
 
   final String body;
+  final Color highlightColor;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
     return MarkdownBody(
       data: body,
       selectable: true,
       styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
-        p: textTheme.bodyLarge?.copyWith(height: 1.5),
+        p: textTheme.bodyLarge?.copyWith(height: 1.55, fontSize: 16),
         h1: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
         h2: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
         h3: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
         blockquote: textTheme.bodyLarge?.copyWith(
-          fontStyle: FontStyle.italic,
-          color: scheme.onSurfaceVariant,
+          color: Colors.black87,
+          fontWeight: FontWeight.w500,
+          height: 1.45,
+          fontStyle: FontStyle.normal,
         ),
         blockquoteDecoration: BoxDecoration(
-          color: scheme.surfaceContainerHighest,
-          border: Border(
-            left: BorderSide(color: scheme.primary, width: 3),
-          ),
+          color: highlightColor,
+          borderRadius: BorderRadius.circular(4),
         ),
-        blockquotePadding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-        code: TextStyle(
-          backgroundColor: scheme.surfaceContainerHighest,
-          fontFamily: 'monospace',
-        ),
-        listBullet: textTheme.bodyLarge,
+        blockquotePadding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+        listBullet: textTheme.bodyLarge?.copyWith(height: 1.55),
       ),
     );
   }

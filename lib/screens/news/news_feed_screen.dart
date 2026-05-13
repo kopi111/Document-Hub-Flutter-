@@ -49,9 +49,7 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
 
   Future<void> _openArticle(NewsArticle article) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => NewsDetailScreen(article: article),
-      ),
+      MaterialPageRoute(builder: (_) => NewsDetailScreen(article: article)),
     );
   }
 
@@ -90,14 +88,78 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
       return _NewsErrorState(message: _error!, onRetry: _loadArticles);
     }
     if (_articles.isEmpty) return const _NewsEmptyState();
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      itemCount: _articles.length,
-      itemBuilder: (context, index) => NewsCard(
-        article: _articles[index],
-        onTap: () => _openArticle(_articles[index]),
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: _articles.length + 1,
+      separatorBuilder: (context, index) => const Divider(height: 1, thickness: 0.5),
+      itemBuilder: (context, index) {
+        if (index == 0) return const _FeedHeader();
+        final article = _articles[index - 1];
+        return NewsCard(article: article, onTap: () => _openArticle(article));
+      },
+    );
+  }
+}
+
+class _FeedHeader extends StatelessWidget {
+  const _FeedHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'TODAY',
+            style: textTheme.labelSmall?.copyWith(
+              color: const Color(0xFFC62828),
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1.4,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            _todayLabel(),
+            style: textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w800,
+              color: colors.onSurface,
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  String _todayLabel() {
+    final now = DateTime.now();
+    const weekdays = [
+      'Monday',
+      'Tuesday',
+      'Wednesday',
+      'Thursday',
+      'Friday',
+      'Saturday',
+      'Sunday',
+    ];
+    const months = [
+      'January',
+      'February',
+      'March',
+      'April',
+      'May',
+      'June',
+      'July',
+      'August',
+      'September',
+      'October',
+      'November',
+      'December',
+    ];
+    return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}';
   }
 }
 
