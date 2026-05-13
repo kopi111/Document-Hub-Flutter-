@@ -56,7 +56,7 @@ Source documents in this repo:
 | 3.5 | §11.4 | Two-pane tablet layout (width > 600 dp) | Client | Planned | Responsive layout |
 | 3.6 | §14.2 | In-app privacy notice at first launch | Client | Done | `lib/screens/privacy_notice_screen.dart`, gated by `FirstLaunchGate` |
 | 3.7 | §14.3 | EULA acceptance at first launch | Client | Done | `lib/screens/eula_screen.dart`, accepted-flag persisted via `FirstLaunchPreferences` |
-| 3.8 | §14.1 | About screen with bundled third-party licence texts | Client | Planned | Generate via `flutter_oss_licenses` or similar |
+| 3.8 | §14.1 | About screen with bundled third-party licence texts | Client | Done | `lib/screens/about_screen.dart`; opens Flutter's built-in `showLicensePage` for third-party licences; reachable from the home app bar 3-dot menu |
 | 3.9 | Phase 2 | iOS port — Keychain + sandbox + MDM profile | Client | Planned | Defer until officer demand confirmed |
 | 3.10 | §6.3 | First-page thumbnails on document tiles | Client | Planned | Depends on `/api/v1/documents/{id}/thumbnail` |
 | 3.11 | §8 | Screenshot blocking + per-officer watermarking | Client | Planned | Phase 2 hardening |

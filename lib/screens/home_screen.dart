@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../services/github_service.dart';
+import 'about_screen.dart';
 import 'document_list_screen.dart';
 import 'search_results_screen.dart';
 
@@ -63,6 +64,15 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  void _handleMenuAction(BuildContext context, _HomeMenuAction action) {
+    switch (action) {
+      case _HomeMenuAction.about:
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const AboutScreen()),
+        );
+    }
   }
 
   IconData _categoryIcon(String category) {
@@ -129,6 +139,20 @@ class _HomeScreenState extends State<HomeScreen> {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: _loadDocuments,
+          ),
+          PopupMenuButton<_HomeMenuAction>(
+            tooltip: 'More options',
+            onSelected: (action) => _handleMenuAction(context, action),
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: _HomeMenuAction.about,
+                child: ListTile(
+                  leading: Icon(Icons.info_outline),
+                  title: Text('About'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -281,3 +305,5 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+
+enum _HomeMenuAction { about }
