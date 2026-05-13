@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../services/github_service.dart';
+import '../widgets/westops/westops_section.dart';
 import 'about_screen.dart';
 import 'document_list_screen.dart';
 import 'search_results_screen.dart';
@@ -22,8 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
 
-  String? _tabletSelectedCategory;
-  List<PolicyDocument>? _tabletSelectedDocuments;
+  _TabletSelection? _tabletSelection;
 
   @override
   void initState() {
@@ -72,10 +72,22 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  void _openWestOpsFullScreen(WestOpsFeatureSpec spec) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: spec.builder),
+    );
+  }
+
   void _selectTabletCategory(String category, List<PolicyDocument> docs) {
     setState(() {
-      _tabletSelectedCategory = category;
-      _tabletSelectedDocuments = docs;
+      _tabletSelection = _CategorySelection(category: category, documents: docs);
+    });
+  }
+
+  void _selectTabletWestOps(WestOpsFeatureSpec spec) {
+    setState(() {
+      _tabletSelection = _WestOpsSelection(spec: spec);
     });
   }
 
@@ -188,42 +200,48 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildPhoneLayout(ColorScheme scheme) {
-    return Column(
-      children: [
-        _StatsBanner(
-          documentCount: _allDocuments.length,
-          categoryCount: _categories.length,
-        ),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: () =>
-                  _openCategoryFullScreen('All Documents', _allDocuments),
-              icon: const Icon(Icons.library_books),
-              label: Text('View All Documents (${_allDocuments.length})'),
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _StatsBanner(
+            documentCount: _allDocuments.length,
+            categoryCount: _categories.length,
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: SizedBox(
+              width: double.infinity,
+              child: FilledButton.icon(
+                onPressed: () =>
+                    _openCategoryFullScreen('All Documents', _allDocuments),
+                icon: const Icon(Icons.library_books),
+                label: Text('View All Documents (${_allDocuments.length})'),
+              ),
             ),
           ),
-        ),
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              'Categories',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Categories',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
             ),
           ),
-        ),
-        Expanded(child: _buildPhoneCategoryGrid(scheme)),
-      ],
+          _buildPhoneCategoryGrid(scheme),
+          WestOpsSection(onSelect: _openWestOpsFullScreen),
+        ],
+      ),
     );
   }
 
   Widget _buildPhoneCategoryGrid(ColorScheme scheme) {
     return GridView.builder(
       padding: const EdgeInsets.all(12),
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
         childAspectRatio: 1.4,
@@ -255,20 +273,18 @@ class _HomeScreenState extends State<HomeScreen> {
             documentCount: _allDocuments.length,
             categoryCount: _categories.length,
             categories: _categories,
-            selectedCategory: _tabletSelectedCategory,
+            selection: _tabletSelection,
             iconFor: _categoryIcon,
             colorFor: (key) => _categoryColor(key, scheme),
             onSelectAll: () =>
                 _selectTabletCategory('All Documents', _allDocuments),
             onSelectCategory: _selectTabletCategory,
+            onSelectWestOps: _selectTabletWestOps,
           ),
         ),
         const VerticalDivider(width: 1, thickness: 1),
         Expanded(
-          child: _TabletCategoryDetail(
-            selectedCategory: _tabletSelectedCategory,
-            documents: _tabletSelectedDocuments,
-          ),
+          child: _TabletCategoryDetail(selection: _tabletSelection),
         ),
       ],
     );
@@ -276,6 +292,24 @@ class _HomeScreenState extends State<HomeScreen> {
 }
 
 enum _HomeMenuAction { about }
+
+/// Discriminated union describing what the tablet two-pane detail slot is
+/// currently showing. Subclasses keep the home screen free of flag arguments
+/// or nullable parallel state fields.
+sealed class _TabletSelection {
+  const _TabletSelection();
+}
+
+class _CategorySelection extends _TabletSelection {
+  final String category;
+  final List<PolicyDocument> documents;
+  const _CategorySelection({required this.category, required this.documents});
+}
+
+class _WestOpsSelection extends _TabletSelection {
+  final WestOpsFeatureSpec spec;
+  const _WestOpsSelection({required this.spec});
+}
 
 class _LoadingState extends StatelessWidget {
   const _LoadingState();
@@ -438,28 +472,39 @@ class _CategorySidebar extends StatelessWidget {
     required this.documentCount,
     required this.categoryCount,
     required this.categories,
-    required this.selectedCategory,
+    required this.selection,
     required this.iconFor,
     required this.colorFor,
     required this.onSelectAll,
     required this.onSelectCategory,
+    required this.onSelectWestOps,
   });
 
   final int documentCount;
   final int categoryCount;
   final Map<String, List<PolicyDocument>> categories;
-  final String? selectedCategory;
+  final _TabletSelection? selection;
   final IconData Function(String) iconFor;
   final Color Function(String) colorFor;
   final VoidCallback onSelectAll;
   final void Function(String category, List<PolicyDocument> docs)
       onSelectCategory;
+  final void Function(WestOpsFeatureSpec spec) onSelectWestOps;
+
+  String? get _selectedCategory {
+    final current = selection;
+    return current is _CategorySelection ? current.category : null;
+  }
+
+  WestOpsFeature? get _selectedWestOps {
+    final current = selection;
+    return current is _WestOpsSelection ? current.spec.feature : null;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final allSelected = selectedCategory == 'All Documents';
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    final allSelected = _selectedCategory == 'All Documents';
+    return ListView(
       children: [
         _StatsBanner(
           documentCount: documentCount,
@@ -483,24 +528,20 @@ class _CategorySidebar extends StatelessWidget {
                 ),
           ),
         ),
-        Expanded(
-          child: ListView.builder(
-            itemCount: categories.length,
-            itemBuilder: (context, index) {
-              final entry = categories.entries.elementAt(index);
-              final selected = selectedCategory == entry.key;
-              return ListTile(
-                leading: Icon(iconFor(entry.key), color: colorFor(entry.key)),
-                title: Text(entry.key),
-                trailing: Text(
-                  '${entry.value.length}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                selected: selected,
-                onTap: () => onSelectCategory(entry.key, entry.value),
-              );
-            },
+        for (final entry in categories.entries)
+          ListTile(
+            leading: Icon(iconFor(entry.key), color: colorFor(entry.key)),
+            title: Text(entry.key),
+            trailing: Text(
+              '${entry.value.length}',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            selected: _selectedCategory == entry.key,
+            onTap: () => onSelectCategory(entry.key, entry.value),
           ),
+        WestOpsSidebarSection(
+          selectedFeature: _selectedWestOps,
+          onSelect: onSelectWestOps,
         ),
       ],
     );
@@ -508,26 +549,27 @@ class _CategorySidebar extends StatelessWidget {
 }
 
 class _TabletCategoryDetail extends StatelessWidget {
-  const _TabletCategoryDetail({
-    required this.selectedCategory,
-    required this.documents,
-  });
+  const _TabletCategoryDetail({required this.selection});
 
-  final String? selectedCategory;
-  final List<PolicyDocument>? documents;
+  final _TabletSelection? selection;
 
   @override
   Widget build(BuildContext context) {
-    final category = selectedCategory;
-    final docs = documents;
-    if (category == null || docs == null) {
-      return const _EmptyDetailPlaceholder();
+    final current = selection;
+    if (current == null) return const _EmptyDetailPlaceholder();
+    switch (current) {
+      case _CategorySelection(:final category, :final documents):
+        return DocumentListScreen(
+          key: ValueKey('category:$category'),
+          title: category,
+          documents: documents,
+        );
+      case _WestOpsSelection(:final spec):
+        return KeyedSubtree(
+          key: ValueKey('westops:${spec.feature.name}'),
+          child: Builder(builder: spec.builder),
+        );
     }
-    return DocumentListScreen(
-      key: ValueKey(category),
-      title: category,
-      documents: docs,
-    );
   }
 }
 

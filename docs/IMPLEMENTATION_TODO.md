@@ -69,6 +69,21 @@ Source documents in this repo:
 
 ---
 
+## Western Operations features (ported from WestOps)
+
+Four features lifted from the sibling `~/projects/WestOPs/WestOps/westops/` Flutter app, reskinned to match Document Hub conventions (AppBar + breadcrumb + search + list/detail). Each ships with an abstract repository and an in-memory mock seeded with Jamaica-flavoured sample data; HTTP-backed repositories will land once the backend agent exposes `/api/v1/westops/*`.
+
+| # | Feature | Files | Status | Notes |
+|---|---|---|---|---|
+| W.1 | Wanted Persons | `lib/models/westops/wanted_person.dart`, `lib/services/westops/wanted_persons_repository.dart`, `lib/screens/westops/wanted_list_screen.dart`, `lib/screens/westops/wanted_detail_screen.dart` | Done (UI + mock data) | `HttpWantedPersonsRepository` blocked on backend agent shipping `/api/v1/westops/wanted-persons` |
+| W.2 | Missing Persons | `lib/models/westops/missing_person.dart`, `lib/services/westops/missing_persons_repository.dart`, `lib/screens/westops/missing_list_screen.dart`, `lib/screens/westops/missing_detail_screen.dart` | Done (UI + mock data) | `HttpMissingPersonsRepository` blocked on backend agent shipping `/api/v1/westops/missing-persons` |
+| W.3 | Stolen Vehicles | `lib/models/westops/stolen_vehicle.dart`, `lib/services/westops/stolen_vehicles_repository.dart`, `lib/screens/westops/stolen_vehicles_list_screen.dart`, `lib/screens/westops/stolen_vehicle_detail_screen.dart` | Done (UI + mock data) | `HttpStolenVehiclesRepository` blocked on backend agent shipping `/api/v1/westops/stolen-vehicles` |
+| W.4 | Traffic Code Reference | `lib/models/westops/traffic_code.dart`, `lib/services/westops/traffic_codes_repository.dart`, `lib/screens/westops/traffic_codes_list_screen.dart`, `lib/screens/westops/traffic_code_detail_screen.dart` | Done (UI + mock data) | Mock seeded with 10 RTA offence samples from the WestOps catalogue (full set is 147). `HttpTrafficCodesRepository` blocked on backend agent shipping `/api/v1/westops/traffic-codes` |
+
+Home-screen integration: `lib/widgets/westops/westops_section.dart` exposes `WestOpsSection` (phone 2x2 grid) and `WestOpsSidebarSection` (tablet sidebar). `lib/screens/home_screen.dart` mounts both, with a sealed `_TabletSelection` (`_CategorySelection` | `_WestOpsSelection`) driving the two-pane detail slot.
+
+---
+
 ## Dependencies to add (`pubspec.yaml`)
 
 Once the client-side slices start, the following packages will land:
