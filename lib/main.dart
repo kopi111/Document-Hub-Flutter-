@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'screens/home_screen.dart';
+import 'screens/first_launch_gate.dart';
 
 void main() {
   runApp(const DocumentHubApp());
@@ -31,7 +31,7 @@ class DocumentHubApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const FirstLaunchGate(),
     );
   }
 }
