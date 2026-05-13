@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
+import '../models/document_cache_state.dart';
+import '../services/document_cache_repository.dart';
+import '../widgets/document_staleness_badge.dart';
 import 'pdf_viewer_screen.dart';
 
 class DocumentListScreen extends StatefulWidget {
@@ -18,6 +21,7 @@ class DocumentListScreen extends StatefulWidget {
 
 class _DocumentListScreenState extends State<DocumentListScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final DocumentCacheRepository _cache = InMemoryDemoDocumentCache();
   List<PolicyDocument> _filtered = [];
 
   @override
@@ -40,6 +44,8 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
   }
 
   void _openDocument(PolicyDocument doc) {
+    _cache.recordOpened(doc);
+    setState(() {});
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -98,31 +104,11 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
                 ? const Center(child: Text('No documents found'))
                 : ListView.builder(
                     itemCount: _filtered.length,
-                    itemBuilder: (context, index) {
-                      final doc = _filtered[index];
-                      final isPdf = doc.name.endsWith('.pdf');
-                      return ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: isPdf
-                              ? Colors.red.shade100
-                              : Colors.blue.shade100,
-                          child: Icon(
-                            isPdf
-                                ? Icons.picture_as_pdf
-                                : Icons.description,
-                            color: isPdf ? Colors.red : Colors.blue,
-                          ),
-                        ),
-                        title: Text(
-                          doc.displayName,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(doc.category),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => _openDocument(doc),
-                      );
-                    },
+                    itemBuilder: (context, index) => _DocumentTile(
+                      document: _filtered[index],
+                      cacheState: _cache.stateFor(_filtered[index]),
+                      onOpen: _openDocument,
+                    ),
                   ),
           ),
         ],
@@ -134,5 +120,56 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+}
+
+class _DocumentTile extends StatelessWidget {
+  const _DocumentTile({
+    required this.document,
+    required this.cacheState,
+    required this.onOpen,
+  });
+
+  final PolicyDocument document;
+  final DocumentCacheState cacheState;
+  final void Function(PolicyDocument) onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final isPdf = document.name.endsWith('.pdf');
+    final colors = Theme.of(context).colorScheme;
+    final disabled = !cacheState.isOpenable;
+    final subtitleText = disabled ? 'Not available offline' : document.category;
+
+    return ListTile(
+      enabled: !disabled,
+      leading: CircleAvatar(
+        backgroundColor: isPdf ? Colors.red.shade100 : Colors.blue.shade100,
+        child: Icon(
+          isPdf ? Icons.picture_as_pdf : Icons.description,
+          color: isPdf ? Colors.red : Colors.blue,
+        ),
+      ),
+      title: Text(
+        document.displayName,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Row(
+        children: [
+          Expanded(
+            child: Text(
+              subtitleText,
+              style: TextStyle(
+                color: disabled ? colors.onSurfaceVariant : null,
+              ),
+            ),
+          ),
+          DocumentStalenessBadge(state: cacheState),
+        ],
+      ),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: disabled ? null : () => onOpen(document),
+    );
   }
 }

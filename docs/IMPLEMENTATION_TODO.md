@@ -40,7 +40,7 @@ Source documents in this repo:
 | 2.3 | §6.4 | Rate-limit handling client-side (HTTP 429 + `Retry-After`) | Client | Planned | Wraps API client |
 | 2.4 | §10 | Offline mode: cached metadata, encrypted PDF cache, 7-day TTL, 500 MB cap | Client | Planned | Add `sqflite_cipher` or Drift + SQLCipher |
 | 2.5 | §10.3 | Sync manifest poll (every 6 h) + SHA-256 mismatch → cache invalidate | Client | Planned | Depends on `/api/v1/sync/manifest` |
-| 2.6 | §10.4 | Staleness badges: Cached / Expiring / Updated / Live | Client | Planned | UI on document tiles |
+| 2.6 | §10.4 | Staleness badges: Cached / Expiring / Updated / Live | Client | Done | `lib/widgets/document_staleness_badge.dart` + `DocumentCacheRepository` interface; backed by `InMemoryDemoDocumentCache` (demo seed) until TODO 2.4 lands the real encrypted cache |
 | 2.7 | §8 | TLS 1.2 minimum + certificate pinning on the API host | Client | Planned | Configure HTTP client + bundle pinned fingerprint |
 | 2.8 | §4.3 | 30-minute idle timeout → silent re-authentication | Client | Planned | App lifecycle hook |
 | 2.9 | §13.2 | Application Insights for backend latency / error rate | Server | Blocked | Server-side observability |
