@@ -39,6 +39,7 @@ Source documents in this repo:
 | 2.2 | §13.2 | Firebase Crashlytics integration | Client | Planned | No PII in payloads |
 | 2.3 | §6.4 | Rate-limit handling client-side (HTTP 429 + `Retry-After`) | Client | Planned | Wraps API client |
 | 2.4 | §10 | Offline mode: cached metadata, encrypted PDF cache, 7-day TTL, 500 MB cap | Client | Planned | Add `sqflite_cipher` or Drift + SQLCipher |
+| 2.4a | §10.2 | Offline banner in app header when no data connection | Client | Done | `lib/widgets/offline_banner.dart` wraps the app via `MaterialApp.builder`; `ConnectivityPlusService` boundary in `lib/services/connectivity_service.dart`; banner exposes `Semantics(liveRegion: true)` so TalkBack announces the transition |
 | 2.5 | §10.3 | Sync manifest poll (every 6 h) + SHA-256 mismatch → cache invalidate | Client | Planned | Depends on `/api/v1/sync/manifest` |
 | 2.6 | §10.4 | Staleness badges: Cached / Expiring / Updated / Live | Client | Done | `lib/widgets/document_staleness_badge.dart` + `DocumentCacheRepository` interface; backed by `InMemoryDemoDocumentCache` (demo seed) until TODO 2.4 lands the real encrypted cache |
 | 2.7 | §8 | TLS 1.2 minimum + certificate pinning on the API host | Client | Planned | Configure HTTP client + bundle pinned fingerprint |

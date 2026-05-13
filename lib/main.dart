@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'screens/first_launch_gate.dart';
+import 'services/connectivity_service.dart';
+import 'widgets/offline_banner.dart';
 
 void main() {
   runApp(const DocumentHubApp());
@@ -10,12 +13,18 @@ class DocumentHubApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final ConnectivityService connectivity = ConnectivityPlusService();
+
     return MaterialApp(
       title: 'JCF Document Hub',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(Brightness.light),
       darkTheme: _buildTheme(Brightness.dark),
       themeMode: ThemeMode.system,
+      builder: (context, child) => OfflineBanner(
+        connectivity: connectivity,
+        child: child ?? const SizedBox.shrink(),
+      ),
       home: const FirstLaunchGate(),
     );
   }
