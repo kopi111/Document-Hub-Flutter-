@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../models/westops/traffic_code.dart';
 import '../../services/westops/traffic_codes_repository.dart';
+import '../../theme/duty_theme.dart';
 import '../../widgets/breadcrumb_trail.dart';
+import '../../widgets/editorial/shared_axis_route.dart';
 import 'traffic_code_detail_screen.dart';
 
 class TrafficCodesListScreen extends StatefulWidget {
@@ -73,7 +75,7 @@ class _TrafficCodesListScreenState extends State<TrafficCodesListScreen> {
   void _openDetail(TrafficCode entry) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => TrafficCodeDetailScreen(entry: entry)),
+      sharedAxis(TrafficCodeDetailScreen(entry: entry)),
     );
   }
 
@@ -85,12 +87,9 @@ class _TrafficCodesListScreenState extends State<TrafficCodesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Traffic Codes'),
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
         bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
       ),
       body: _buildBody(),
@@ -115,92 +114,244 @@ class _TrafficCodesListScreenState extends State<TrafficCodesListScreen> {
     if (_error != null) return Center(child: Text(_error!));
     return Column(
       children: [
-        _buildSearchField(),
-        _buildResultsHeader(),
-        const SizedBox(height: 4),
-        Expanded(child: _buildList()),
+        _SearchField(
+          controller: _searchController,
+          onChanged: _onSearchChanged,
+          onClear: _clearSearch,
+        ),
+        _ResultsHeader(count: _visible.length),
+        const _TableHeader(),
+        Expanded(child: _CodesList(codes: _visible, onOpen: _openDetail)),
       ],
     );
   }
+}
 
-  Widget _buildSearchField() {
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: TextField(
-        controller: _searchController,
-        onChanged: _onSearchChanged,
+        controller: controller,
+        onChanged: onChanged,
+        style: DutyTheme.mono(size: 13),
         decoration: InputDecoration(
-          hintText: 'Search by code, offence or section...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
+          hintText: 'Search by code, offence or section',
+          hintStyle: DutyTheme.mono(
+            size: 12,
+            color: colors.mutedGold,
+            letterSpacing: 0.4,
+          ),
+          prefixIcon: Icon(Icons.search, size: 18, color: colors.mutedGold),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
                   tooltip: 'Clear search',
-                  onPressed: _clearSearch,
-                )
-              : null,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          filled: true,
+                  onPressed: onClear,
+                ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildResultsHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          '${_visible.length} offences',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildList() {
-    if (_visible.isEmpty) {
-      return const Center(child: Text('No matching offences'));
-    }
-    return ListView.builder(
-      itemCount: _visible.length,
-      itemBuilder: (context, index) => _TrafficCodeTile(
-        entry: _visible[index],
-        onOpen: _openDetail,
       ),
     );
   }
 }
 
-class _TrafficCodeTile extends StatelessWidget {
-  const _TrafficCodeTile({required this.entry, required this.onOpen});
+class _ResultsHeader extends StatelessWidget {
+  const _ResultsHeader({required this.count});
+  final int count;
 
-  final TrafficCode entry;
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Row(
+        children: [
+          Container(width: 18, height: 1, color: colors.mutedGold),
+          const SizedBox(width: 10),
+          Text(
+            '${count.toString().padLeft(3, '0')}  OFFENCES',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TableHeader extends StatelessWidget {
+  const _TableHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(color: colors.hairline),
+          bottom: BorderSide(color: colors.hairline),
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            child: Text(
+              'CODE',
+              style: DutyTheme.mono(
+                size: 10,
+                color: colors.mutedGold,
+                letterSpacing: 1.4,
+                weight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              'OFFENCE',
+              style: DutyTheme.mono(
+                size: 10,
+                color: colors.mutedGold,
+                letterSpacing: 1.4,
+                weight: FontWeight.w700,
+              ),
+            ),
+          ),
+          Text(
+            'FINE  PTS',
+            style: DutyTheme.mono(
+              size: 10,
+              color: colors.mutedGold,
+              letterSpacing: 1.4,
+              weight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CodesList extends StatelessWidget {
+  const _CodesList({required this.codes, required this.onOpen});
+
+  final List<TrafficCode> codes;
   final void Function(TrafficCode) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.teal.shade100,
-        child: Text(
-          entry.code,
-          style: const TextStyle(
-            color: Colors.teal,
-            fontWeight: FontWeight.w700,
-            fontSize: 12,
-          ),
+    if (codes.isEmpty) {
+      return ListView(
+        children: const [
+          SizedBox(height: 120),
+          Center(child: Text('No matching offences')),
+        ],
+      );
+    }
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: codes.length,
+      separatorBuilder: (_, _) => Container(height: 1, color: colors.hairline),
+      itemBuilder: (context, index) {
+        return _CodeRow(entry: codes[index], onTap: () => onOpen(codes[index]));
+      },
+    );
+  }
+}
+
+class _CodeRow extends StatelessWidget {
+  const _CodeRow({required this.entry, required this.onTap});
+
+  final TrafficCode entry;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 56,
+              child: Text(
+                entry.code,
+                style: DutyTheme.mono(
+                  size: 14,
+                  weight: FontWeight.w700,
+                  color: scheme.onSurface,
+                ),
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    entry.offenceDescription,
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: scheme.onSurface,
+                          height: 1.2,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    entry.legalSection,
+                    style: DutyTheme.mono(
+                      size: 11,
+                      color: colors.mutedGold,
+                      letterSpacing: 0.4,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '\$${entry.fineAmount.toStringAsFixed(0)}',
+                  style: DutyTheme.mono(
+                    size: 14,
+                    weight: FontWeight.w700,
+                    color: scheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${entry.demeritPoints} PTS',
+                  style: DutyTheme.mono(
+                    size: 10,
+                    color: colors.mutedGold,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
-      title: Text(
-        entry.offenceDescription,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(entry.legalSection),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => onOpen(entry),
     );
   }
 }

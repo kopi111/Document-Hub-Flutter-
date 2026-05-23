@@ -22,7 +22,7 @@ class AppDrawer extends StatelessWidget {
             const _SectionLabel('Library'),
             _Entry(
               icon: Icons.folder_outlined,
-              label: 'Documents',
+              label: 'Library',
               screen: const HomeScreen(),
             ),
             const Divider(),

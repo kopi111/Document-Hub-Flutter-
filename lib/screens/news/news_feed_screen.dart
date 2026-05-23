@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 
 import '../../models/news/news_article.dart';
 import '../../services/news/news_repository.dart';
-import 'package:shimmer/shimmer.dart';
-
+import '../../theme/duty_theme.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/breadcrumb_trail.dart';
+import '../../widgets/editorial/shared_axis_route.dart';
 import '../../widgets/news/news_card.dart';
 import '../../widgets/notifications_bell.dart';
 import 'news_detail_screen.dart';
@@ -53,19 +53,16 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
 
   Future<void> _openArticle(NewsArticle article) async {
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => NewsDetailScreen(article: article)),
+      sharedAxis(NewsDetailScreen(article: article)),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text('JCF Announcements'),
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
+        title: const Text('Announcements'),
         actions: [
           NotificationsBell(newsRepository: widget.repository),
         ],
@@ -99,7 +96,10 @@ class _NewsFeedScreenState extends State<NewsFeedScreen> {
     return ListView.separated(
       padding: EdgeInsets.zero,
       itemCount: _articles.length + 1,
-      separatorBuilder: (context, index) => const Divider(height: 1, thickness: 0.5),
+      separatorBuilder: (context, index) {
+        final colors = Theme.of(context).extension<DutyColors>()!;
+        return Container(height: 1, color: colors.hairline);
+      },
       itemBuilder: (context, index) {
         if (index == 0) return const _FeedHeader();
         final article = _articles[index - 1];
@@ -114,27 +114,33 @@ class _FeedHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).extension<DutyColors>()!;
     final textTheme = Theme.of(context).textTheme;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'TODAY',
-            style: textTheme.labelSmall?.copyWith(
-              color: const Color(0xFFC62828),
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1.4,
-            ),
+          Row(
+            children: [
+              Container(width: 18, height: 1, color: colors.mutedGold),
+              const SizedBox(width: 10),
+              Text(
+                'TODAY',
+                style: textTheme.labelLarge?.copyWith(
+                  color: colors.alertRed,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 10),
           Text(
             _todayLabel(),
             style: textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: colors.onSurface,
+              fontWeight: FontWeight.w700,
+              color: scheme.onSurface,
+              height: 1.05,
             ),
           ),
         ],
@@ -176,83 +182,11 @@ class _NewsLoadingState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Shimmer.fromColors(
-      baseColor: scheme.surfaceContainerHighest,
-      highlightColor: scheme.surface,
-      child: ListView.separated(
-        physics: const NeverScrollableScrollPhysics(),
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        itemCount: 6,
-        separatorBuilder: (_, _) => const Divider(height: 1, thickness: 0.5),
-        itemBuilder: (context, index) => const _NewsCardSkeleton(),
-      ),
-    );
-  }
-}
-
-class _NewsCardSkeleton extends StatelessWidget {
-  const _NewsCardSkeleton();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _SkeletonBar(width: 60, height: 11),
-                SizedBox(height: 8),
-                _SkeletonBar(width: double.infinity, height: 16),
-                SizedBox(height: 6),
-                _SkeletonBar(width: 240, height: 16),
-                SizedBox(height: 12),
-                _SkeletonBar(width: 120, height: 11),
-              ],
-            ),
-          ),
-          SizedBox(width: 12),
-          _SkeletonBox(size: 88),
-        ],
-      ),
-    );
-  }
-}
-
-class _SkeletonBar extends StatelessWidget {
-  const _SkeletonBar({required this.width, required this.height});
-  final double width;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: width,
-      height: height,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(4),
-      ),
-    );
-  }
-}
-
-class _SkeletonBox extends StatelessWidget {
-  const _SkeletonBox({required this.size});
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(6),
+    return const Center(
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: CircularProgressIndicator(strokeWidth: 2),
       ),
     );
   }

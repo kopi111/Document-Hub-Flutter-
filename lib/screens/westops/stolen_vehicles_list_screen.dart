@@ -1,8 +1,11 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/westops/stolen_vehicle.dart';
 import '../../services/westops/stolen_vehicles_repository.dart';
+import '../../theme/duty_theme.dart';
 import '../../widgets/breadcrumb_trail.dart';
+import '../../widgets/editorial/shared_axis_route.dart';
 import 'stolen_vehicle_detail_screen.dart';
 
 class StolenVehiclesListScreen extends StatefulWidget {
@@ -77,9 +80,7 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
   void _openDetail(StolenVehicle vehicle) {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => StolenVehicleDetailScreen(vehicle: vehicle),
-      ),
+      sharedAxis(StolenVehicleDetailScreen(vehicle: vehicle)),
     );
   }
 
@@ -91,12 +92,9 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Stolen Vehicles'),
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
         bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
       ),
       body: _buildBody(),
@@ -121,92 +119,247 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
     if (_error != null) return Center(child: Text(_error!));
     return Column(
       children: [
-        _buildSearchField(),
-        _buildResultsHeader(),
-        const SizedBox(height: 4),
-        Expanded(child: _buildList()),
+        _SearchField(
+          controller: _searchController,
+          onChanged: _onSearchChanged,
+          onClear: _clearSearch,
+        ),
+        _ResultsHeader(count: _visible.length),
+        Expanded(
+          child: RefreshIndicator(
+            onRefresh: _loadRecords,
+            child: _VehicleList(vehicles: _visible, onOpen: _openDetail),
+          ),
+        ),
       ],
     );
   }
+}
 
-  Widget _buildSearchField() {
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
     return Padding(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
       child: TextField(
-        controller: _searchController,
-        onChanged: _onSearchChanged,
+        controller: controller,
+        onChanged: onChanged,
+        style: DutyTheme.mono(size: 13),
         decoration: InputDecoration(
-          hintText: 'Search by make, model, plate or colour...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchController.text.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
+          hintText: 'Search by make, model, plate or colour',
+          hintStyle: DutyTheme.mono(
+            size: 12,
+            color: colors.mutedGold,
+            letterSpacing: 0.4,
+          ),
+          prefixIcon: Icon(Icons.search, size: 18, color: colors.mutedGold),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.clear, size: 18),
                   tooltip: 'Clear search',
-                  onPressed: _clearSearch,
-                )
-              : null,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-          filled: true,
+                  onPressed: onClear,
+                ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildResultsHeader() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          '${_visible.length} stolen vehicles',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildList() {
-    if (_visible.isEmpty) {
-      return const Center(child: Text('No stolen vehicles found'));
-    }
-    return ListView.builder(
-      itemCount: _visible.length,
-      itemBuilder: (context, index) => _StolenVehicleTile(
-        vehicle: _visible[index],
-        onOpen: _openDetail,
       ),
     );
   }
 }
 
-class _StolenVehicleTile extends StatelessWidget {
-  const _StolenVehicleTile({required this.vehicle, required this.onOpen});
+class _ResultsHeader extends StatelessWidget {
+  const _ResultsHeader({required this.count});
+  final int count;
 
-  final StolenVehicle vehicle;
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Row(
+        children: [
+          Container(width: 18, height: 1, color: colors.mutedGold),
+          const SizedBox(width: 10),
+          Text(
+            '${count.toString().padLeft(3, '0')}  STOLEN VEHICLES',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VehicleList extends StatelessWidget {
+  const _VehicleList({required this.vehicles, required this.onOpen});
+
+  final List<StolenVehicle> vehicles;
   final void Function(StolenVehicle) onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final plate = vehicle.licensePlate ?? 'Plate unknown';
-    final color = vehicle.color;
-    final subtitle = color == null ? plate : '$color — $plate';
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor: Colors.indigo.shade100,
-        child: const Icon(Icons.directions_car, color: Colors.indigo),
+    if (vehicles.isEmpty) {
+      return ListView(
+        children: const [
+          SizedBox(height: 120),
+          Center(child: Text('No stolen vehicles found')),
+        ],
+      );
+    }
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      itemCount: vehicles.length,
+      separatorBuilder: (_, _) => Container(height: 1, color: colors.hairline),
+      itemBuilder: (context, index) {
+        return _VehicleRow(
+          vehicle: vehicles[index],
+          onTap: () => onOpen(vehicles[index]),
+        );
+      },
+    );
+  }
+}
+
+class _VehicleRow extends StatelessWidget {
+  const _VehicleRow({required this.vehicle, required this.onTap});
+
+  final StolenVehicle vehicle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Thumbnail(photoUrl: vehicle.photoUrl),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (vehicle.licensePlate != null)
+                    _PlateChip(plate: vehicle.licensePlate!),
+                  if (vehicle.licensePlate != null) const SizedBox(height: 8),
+                  Text(
+                    vehicle.displayName,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: scheme.onSurface,
+                          height: 1.15,
+                        ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  if (vehicle.color != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      vehicle.color!,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: scheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
+                  const SizedBox(height: 6),
+                  Text(
+                    'STOLEN  ·  ${_formatDate(vehicle.dateStolen)}',
+                    style: DutyTheme.mono(
+                      size: 10,
+                      color: colors.mutedGold,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
+          ],
+        ),
       ),
-      title: Text(
-        vehicle.displayName,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final y = date.year.toString().padLeft(4, '0');
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
+  }
+}
+
+class _PlateChip extends StatelessWidget {
+  const _PlateChip({required this.plate});
+  final String plate;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.hairline),
+        color: scheme.surface,
       ),
-      subtitle: Text(
-        subtitle,
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+      child: Text(
+        plate.toUpperCase(),
+        style: DutyTheme.mono(
+          size: 12,
+          weight: FontWeight.w700,
+          color: scheme.onSurface,
+          letterSpacing: 1.6,
+        ),
       ),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: () => onOpen(vehicle),
+    );
+  }
+}
+
+class _Thumbnail extends StatelessWidget {
+  const _Thumbnail({this.photoUrl});
+  final String? photoUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    final scheme = Theme.of(context).colorScheme;
+    final url = photoUrl;
+    final placeholder = Container(
+      width: 64,
+      height: 64,
+      decoration: BoxDecoration(
+        border: Border.all(color: colors.hairline),
+        color: scheme.surfaceContainerHighest,
+      ),
+      child: Icon(
+        Icons.directions_car_outlined,
+        size: 28,
+        color: colors.mutedGold,
+      ),
+    );
+    if (url == null || url.isEmpty) return placeholder;
+    return SizedBox(
+      width: 64,
+      height: 64,
+      child: CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        errorWidget: (_, url, error) => placeholder,
+      ),
     );
   }
 }

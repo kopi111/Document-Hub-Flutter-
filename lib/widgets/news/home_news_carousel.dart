@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/news/news_article.dart';
 import '../../models/news/news_priority.dart';
+import '../../theme/duty_theme.dart';
 import 'news_date_label.dart';
 import 'news_hero_image.dart';
 import 'news_priority_badge.dart';
@@ -18,70 +19,26 @@ class HomeNewsCarousel extends StatelessWidget {
   final void Function(NewsArticle article) onOpenArticle;
   final VoidCallback onViewAll;
 
-  static const double _carouselHeight = 210;
-  static const double _cardWidth = 280;
+  static const double _carouselHeight = 230;
+  static const double _cardWidth = 260;
 
   @override
   Widget build(BuildContext context) {
     if (articles.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(top: 12, bottom: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _SectionHeader(onViewAll: onViewAll),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: _carouselHeight,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: articles.length,
-              separatorBuilder: (_, _) => const SizedBox(width: 12),
-              itemBuilder: (context, index) => SizedBox(
-                width: _cardWidth,
-                child: _HomeNewsCard(
-                  article: articles[index],
-                  onTap: () => onOpenArticle(articles[index]),
-                ),
-              ),
-            ),
+    return SizedBox(
+      height: _carouselHeight,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: articles.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (context, index) => SizedBox(
+          width: _cardWidth,
+          child: _HomeNewsCard(
+            article: articles[index],
+            onTap: () => onOpenArticle(articles[index]),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.onViewAll});
-
-  final VoidCallback onViewAll;
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 8, 0),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              'Latest from the Force',
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: scheme.onSurface,
-              ),
-            ),
-          ),
-          TextButton.icon(
-            onPressed: onViewAll,
-            icon: const Icon(Icons.arrow_forward, size: 18),
-            label: const Text('View all'),
-            iconAlignment: IconAlignment.end,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -95,14 +52,14 @@ class _HomeNewsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
     final scheme = Theme.of(context).colorScheme;
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      elevation: 2,
-      margin: EdgeInsets.zero,
-      child: InkWell(
-        onTap: onTap,
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: colors.hairline),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -129,20 +86,22 @@ class _HomeNewsCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    article.title,
-                    style: textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      height: 1.2,
+                    relativePublishedLabel(article.publishedAt).toUpperCase(),
+                    style: DutyTheme.mono(
+                      size: 10,
+                      color: colors.mutedGold,
+                      letterSpacing: 1.2,
                     ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    relativePublishedLabel(article.publishedAt),
-                    style: textTheme.bodySmall?.copyWith(
-                      color: scheme.onSurfaceVariant,
-                    ),
+                    article.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: scheme.onSurface,
+                          height: 1.2,
+                        ),
                   ),
                 ],
               ),

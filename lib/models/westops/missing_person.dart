@@ -13,7 +13,16 @@ class MissingPerson {
   final String? photoUrl;
   final String? contactPerson;
   final String? contactPhoneNumber;
+  final String? investigatingOfficer;
+  final String? investigatingOfficerSupervisor;
+  final String? stationContactNumber;
+  final String? stationName;
+  final String? stationNumber;
   final String? status;
+  final DateTime? foundDate;
+  final String? foundLocation;
+  final String? foundBy;
+  final String? foundNotes;
 
   const MissingPerson({
     required this.id,
@@ -27,8 +36,54 @@ class MissingPerson {
     this.photoUrl,
     this.contactPerson,
     this.contactPhoneNumber,
+    this.investigatingOfficer,
+    this.investigatingOfficerSupervisor,
+    this.stationContactNumber,
+    this.stationName,
+    this.stationNumber,
     this.status,
+    this.foundDate,
+    this.foundLocation,
+    this.foundBy,
+    this.foundNotes,
   });
 
+  static const String statusMissing = 'Missing';
+  static const String statusFound = 'Found';
+
   String get fullName => '$firstName $lastName';
+
+  bool get isFound => status == statusFound;
+
+  MissingPerson copyWith({
+    String? status,
+    DateTime? foundDate,
+    String? foundLocation,
+    String? foundBy,
+    String? foundNotes,
+  }) {
+    return MissingPerson(
+      id: id,
+      firstName: firstName,
+      lastName: lastName,
+      reportedDate: reportedDate,
+      gender: gender,
+      dateOfBirth: dateOfBirth,
+      lastSeenLocation: lastSeenLocation,
+      description: description,
+      photoUrl: photoUrl,
+      contactPerson: contactPerson,
+      contactPhoneNumber: contactPhoneNumber,
+      investigatingOfficer: investigatingOfficer,
+      investigatingOfficerSupervisor: investigatingOfficerSupervisor,
+      stationContactNumber: stationContactNumber,
+      stationName: stationName,
+      stationNumber: stationNumber,
+      status: status ?? this.status,
+      foundDate: foundDate ?? this.foundDate,
+      foundLocation: foundLocation ?? this.foundLocation,
+      foundBy: foundBy ?? this.foundBy,
+      foundNotes: foundNotes ?? this.foundNotes,
+    );
+  }
 }

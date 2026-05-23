@@ -29,6 +29,7 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       ownerContact: '876-555-0401',
       rewardAmount: 100000,
       status: 'Stolen',
+      photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Toyota+Corolla+2018',
     ),
     StolenVehicle(
       id: 'SV-3002',
@@ -44,6 +45,7 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       ownerContact: '876-555-0402',
       rewardAmount: 150000,
       status: 'Stolen',
+      photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Honda+CR-V+2020',
     ),
     StolenVehicle(
       id: 'SV-3003',
@@ -59,6 +61,7 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       ownerContact: '876-555-0403',
       rewardAmount: 75000,
       status: 'Stolen',
+      photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Nissan+Tiida+2015',
     ),
     StolenVehicle(
       id: 'SV-3004',
@@ -74,6 +77,7 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       ownerContact: '876-555-0404',
       rewardAmount: 250000,
       status: 'Stolen',
+      photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Toyota+Hilux+2022',
     ),
     StolenVehicle(
       id: 'SV-3005',
@@ -89,6 +93,7 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       ownerContact: '876-555-0405',
       rewardAmount: 60000,
       status: 'Stolen',
+      photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Suzuki+Swift+2017',
     ),
     StolenVehicle(
       id: 'SV-3006',
@@ -104,6 +109,7 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       ownerContact: '876-555-0406',
       rewardAmount: 80000,
       status: 'Stolen',
+      photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Mazda+Demio+2019',
     ),
     StolenVehicle(
       id: 'SV-3007',
@@ -119,6 +125,7 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       ownerContact: '876-555-0407',
       rewardAmount: 50000,
       status: 'Stolen',
+      photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Mitsubishi+Lancer+2014',
     ),
   ];
 }

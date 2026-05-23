@@ -14,6 +14,11 @@ class WantedPerson {
   final String? photoUrl;
   final double? rewardAmount;
   final String? contactPhoneNumber;
+  final String? investigatingOfficer;
+  final String? investigatingOfficerSupervisor;
+  final String? stationContactNumber;
+  final String? stationName;
+  final String? stationNumber;
   final String? status;
 
   const WantedPerson({
@@ -27,6 +32,11 @@ class WantedPerson {
     this.photoUrl,
     this.rewardAmount,
     this.contactPhoneNumber,
+    this.investigatingOfficer,
+    this.investigatingOfficerSupervisor,
+    this.stationContactNumber,
+    this.stationName,
+    this.stationNumber,
     this.status,
   });
 

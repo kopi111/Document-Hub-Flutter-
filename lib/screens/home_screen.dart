@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:gap/gap.dart';
 
 import '../models/document.dart';
 import '../models/news/news_article.dart';
 import '../services/github_service.dart';
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
+import '../services/westops/westops_feature_specs.dart';
+import '../theme/duty_theme.dart';
 import '../widgets/app_drawer.dart';
-import '../widgets/dashboard/category_card.dart';
-import '../widgets/dashboard/dashboard_section_header.dart';
 import '../widgets/dashboard/dashboard_skeleton.dart';
-import '../widgets/dashboard/duty_stats_row.dart';
-import '../widgets/dashboard/greeting_card.dart';
-import '../widgets/dashboard/quick_action_button.dart';
+import '../widgets/editorial/section_heading.dart';
+import '../widgets/editorial/shared_axis_route.dart';
+import '../widgets/editorial/stat_block.dart';
 import '../widgets/news/home_news_carousel.dart';
 import 'about_screen.dart';
 import 'calendar/calendar_screen.dart';
@@ -24,9 +22,8 @@ import 'news/news_feed_screen.dart';
 import 'notes/notes_screen.dart';
 import 'search_results_screen.dart';
 
-const List<int> _documentsThisWeekMock = [12, 18, 9, 24, 17, 21, 14];
-const List<int> _reminderCountsMock = [1, 0, 2, 1, 3, 0, 2];
 const int _activeRemindersMock = 3;
+const int _documentsThisWeekMock = 12;
 
 const double _tabletBreakpoint = 600;
 const double _sidebarWidth = 300;
@@ -63,34 +60,11 @@ class _HomeScreenState extends State<HomeScreen> {
       final latest =
           await _newsRepository.latestArticles(limit: _homeCarouselLimit);
       if (!mounted) return;
-      setState(() {
-        _latestNews = latest;
-      });
+      setState(() => _latestNews = latest);
     } catch (_) {
-      // Home tile is optional UI; swallow failures and leave it empty.
       if (!mounted) return;
-      setState(() {
-        _latestNews = const [];
-      });
+      setState(() => _latestNews = const []);
     }
-  }
-
-  void _openNewsFeed() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => NewsFeedScreen(repository: _newsRepository),
-      ),
-    );
-  }
-
-  void _openNewsArticle(NewsArticle article) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => NewsDetailScreen(article: article),
-      ),
-    );
   }
 
   Future<void> _loadDocuments() async {
@@ -113,100 +87,71 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _openSearch() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => SearchResultsScreen(documents: _allDocuments),
-      ),
-    );
+  void _push(Widget page) {
+    Navigator.push(context, sharedAxis(page));
   }
 
+  void _openSearch() => _push(SearchResultsScreen(documents: _allDocuments));
+  void _openCalendar() => _push(const CalendarScreen());
+  void _openNotes() => _push(const NotesScreen());
+  void _openMap() => _push(const MapScreen());
+  void _openNewsFeed() =>
+      _push(NewsFeedScreen(repository: _newsRepository));
+  void _openNewsArticle(NewsArticle article) =>
+      _push(NewsDetailScreen(article: article));
+
   void _openCategoryFullScreen(String category, List<PolicyDocument> docs) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DocumentListScreen(
-          title: category,
-          documents: docs,
-        ),
-      ),
-    );
+    _push(DocumentListScreen(title: category, documents: docs));
   }
 
   void _selectTabletCategory(String category, List<PolicyDocument> docs) {
     setState(() {
-      _tabletSelection = _CategorySelection(category: category, documents: docs);
+      _tabletSelection =
+          _CategorySelection(category: category, documents: docs);
     });
   }
 
   void _handleMenuAction(BuildContext context, _HomeMenuAction action) {
     switch (action) {
       case _HomeMenuAction.about:
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const AboutScreen()),
-        );
+        _push(const AboutScreen());
     }
   }
 
   IconData _categoryIcon(String category) {
     switch (category) {
       case 'Force Orders':
-        return Icons.shield;
+        return Icons.shield_outlined;
       case 'JCF Policies':
-        return Icons.policy;
+        return Icons.gavel;
       case 'NPCJ':
-        return Icons.school;
+        return Icons.school_outlined;
       case 'TMMD':
-        return Icons.directions_car;
+        return Icons.directions_car_outlined;
       case 'PMMD':
-        return Icons.build;
+        return Icons.build_outlined;
       case 'CIB':
         return Icons.search;
       case 'SOPs':
         return Icons.list_alt;
       case 'PRDB':
-        return Icons.analytics;
+        return Icons.analytics_outlined;
       case 'PECC':
-        return Icons.verified;
+        return Icons.verified_outlined;
       default:
-        return Icons.folder;
-    }
-  }
-
-  Color _categoryColor(String category, ColorScheme scheme) {
-    switch (category) {
-      case 'Force Orders':
-        return scheme.primary;
-      case 'JCF Policies':
-        return Colors.blueGrey;
-      case 'NPCJ':
-        return Colors.indigo;
-      case 'TMMD':
-        return Colors.orange;
-      case 'PMMD':
-        return Colors.brown;
-      case 'CIB':
-        return Colors.red;
-      case 'SOPs':
-        return Colors.teal;
-      default:
-        return scheme.secondary;
+        return Icons.folder_outlined;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final width = MediaQuery.sizeOf(context).width;
     final useTabletLayout = width > _tabletBreakpoint;
 
     return Scaffold(
       drawer: const AppDrawer(),
       appBar: AppBar(
-        title: const Text('JCF Duty'),
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
+        title: const Text('Library'),
         actions: [
           if (!_loading)
             IconButton(
@@ -235,60 +180,38 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: _buildBody(scheme, useTabletLayout),
+      body: _buildBody(useTabletLayout),
     );
   }
 
-  Widget _buildBody(ColorScheme scheme, bool useTabletLayout) {
+  Widget _buildBody(bool useTabletLayout) {
     if (_loading) return const DashboardSkeleton();
     if (_error != null) {
       return _ErrorState(message: _error!, onRetry: _loadDocuments);
     }
     return useTabletLayout
-        ? _buildTabletLayout(scheme)
-        : _buildPhoneLayout(scheme);
+        ? _buildTabletLayout()
+        : _buildPhoneLayout();
   }
 
-  void _openCalendar() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const CalendarScreen()),
-    );
-  }
+  Widget _buildPhoneLayout() => _DutyDashboard(
+        categories: _categories,
+        totalDocumentCount: _allDocuments.length,
+        latestNews: _latestNews,
+        iconFor: _categoryIcon,
+        onCalendar: _openCalendar,
+        onNotes: _openNotes,
+        onMap: _openMap,
+        onSearch: _openSearch,
+        onOpenNewsArticle: _openNewsArticle,
+        onOpenNewsFeed: _openNewsFeed,
+        onOpenAllDocuments: () =>
+            _openCategoryFullScreen('All Documents', _allDocuments),
+        onOpenCategory: _openCategoryFullScreen,
+        onOpenWestOpsFeature: _openWestOpsFeature,
+      );
 
-  void _openNotes() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const NotesScreen()),
-    );
-  }
-
-  void _openMap() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => const MapScreen()),
-    );
-  }
-
-  Widget _buildPhoneLayout(ColorScheme scheme) {
-    return _DutyDashboard(
-      categories: _categories,
-      latestNews: _latestNews,
-      iconFor: _categoryIcon,
-      colorFor: (key) => _categoryColor(key, scheme),
-      onCalendar: _openCalendar,
-      onNotes: _openNotes,
-      onMap: _openMap,
-      onSearch: _openSearch,
-      onOpenNewsArticle: _openNewsArticle,
-      onOpenNewsFeed: _openNewsFeed,
-      onOpenAllDocuments: () =>
-          _openCategoryFullScreen('All Documents', _allDocuments),
-      onOpenCategory: _openCategoryFullScreen,
-    );
-  }
-
-  Widget _buildTabletLayout(ColorScheme scheme) {
+  Widget _buildTabletLayout() {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -296,46 +219,54 @@ class _HomeScreenState extends State<HomeScreen> {
           width: _sidebarWidth,
           child: _CategorySidebar(
             categories: _categories,
+            totalDocumentCount: _allDocuments.length,
             selection: _tabletSelection,
             iconFor: _categoryIcon,
-            colorFor: (key) => _categoryColor(key, scheme),
             onSelectAll: () =>
                 _selectTabletCategory('All Documents', _allDocuments),
             onSelectCategory: _selectTabletCategory,
           ),
         ),
-        const VerticalDivider(width: 1, thickness: 1),
+        VerticalDivider(
+          width: 1,
+          thickness: 1,
+          color: Theme.of(context).extension<DutyColors>()!.hairline,
+        ),
         Expanded(
           child: _TabletDetailPane(
             selection: _tabletSelection,
             dashboard: _DutyDashboard(
               categories: _categories,
+              totalDocumentCount: _allDocuments.length,
               latestNews: _latestNews,
               iconFor: _categoryIcon,
-              colorFor: (key) => _categoryColor(key, scheme),
               onCalendar: _openCalendar,
               onNotes: _openNotes,
               onMap: _openMap,
               onSearch: _openSearch,
               onOpenNewsArticle: _openNewsArticle,
               onOpenNewsFeed: _openNewsFeed,
-              onOpenAllDocuments: () => _selectTabletCategory(
-                  'All Documents', _allDocuments),
+              onOpenAllDocuments: () =>
+                  _selectTabletCategory('All Documents', _allDocuments),
               onOpenCategory: _selectTabletCategory,
+              onOpenWestOpsFeature: _openWestOpsFeature,
             ),
           ),
         ),
       ],
     );
   }
+
+  void _openWestOpsFeature(WestOpsFeatureSpec spec) =>
+      _push(Builder(builder: spec.builder));
 }
 
 class _DutyDashboard extends StatelessWidget {
   const _DutyDashboard({
     required this.categories,
+    required this.totalDocumentCount,
     required this.latestNews,
     required this.iconFor,
-    required this.colorFor,
     required this.onCalendar,
     required this.onNotes,
     required this.onMap,
@@ -344,12 +275,13 @@ class _DutyDashboard extends StatelessWidget {
     required this.onOpenNewsFeed,
     required this.onOpenAllDocuments,
     required this.onOpenCategory,
+    required this.onOpenWestOpsFeature,
   });
 
   final Map<String, List<PolicyDocument>> categories;
+  final int totalDocumentCount;
   final List<NewsArticle> latestNews;
   final IconData Function(String) iconFor;
-  final Color Function(String) colorFor;
   final VoidCallback onCalendar;
   final VoidCallback onNotes;
   final VoidCallback onMap;
@@ -359,56 +291,445 @@ class _DutyDashboard extends StatelessWidget {
   final VoidCallback onOpenAllDocuments;
   final void Function(String category, List<PolicyDocument> docs)
       onOpenCategory;
+  final void Function(WestOpsFeatureSpec spec) onOpenWestOpsFeature;
 
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const GreetingCard(),
-          const Gap(20),
-          _QuickActionsRow(
-            onCalendar: onCalendar,
-            onNotes: onNotes,
-            onMap: onMap,
-            onSearch: onSearch,
-          ),
-          const Gap(24),
-          const DutyStatsRow(
-            documentsThisWeek: _documentsThisWeekMock,
-            activeRemindersTotal: _activeRemindersMock,
-            reminderCounts: _reminderCountsMock,
-          ),
-          const Gap(24),
-          if (latestNews.isNotEmpty) ...[
-            DashboardSectionHeader(
-              title: 'Latest from the Force',
-              actionLabel: 'View all',
-              onActionPressed: onOpenNewsFeed,
+          const _EditorialGreeting(),
+          _Hairline(margin: EdgeInsets.zero),
+          const SizedBox(height: 18),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _QuickActionsRow(
+              onCalendar: onCalendar,
+              onNotes: onNotes,
+              onMap: onMap,
+              onSearch: onSearch,
             ),
-            const Gap(8),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SectionHeading(title: 'On duty'),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+            child: StatBlockRow(
+              stats: [
+                const StatBlock(
+                  label: 'This week',
+                  value: _documentsThisWeekMock,
+                  caption: 'documents',
+                ),
+                const StatBlock(
+                  label: 'Reminders',
+                  value: _activeRemindersMock,
+                  caption: 'next 7 days',
+                ),
+                StatBlock(
+                  label: 'Library',
+                  value: totalDocumentCount,
+                  caption: 'documents',
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SectionHeading(title: 'Western operations'),
+          ),
+          _WestOpsPreview(onSelect: onOpenWestOpsFeature),
+          if (latestNews.isNotEmpty) ...[
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: SectionHeading(
+                title: 'Latest from the force',
+                action: 'View all',
+                onAction: onOpenNewsFeed,
+              ),
+            ),
             HomeNewsCarousel(
               articles: latestNews,
               onOpenArticle: onOpenNewsArticle,
               onViewAll: onOpenNewsFeed,
             ),
-            const Gap(20),
           ],
-          DashboardSectionHeader(
-            title: 'Library',
-            actionLabel: 'View all',
-            onActionPressed: onOpenAllDocuments,
+          const SizedBox(height: 28),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: SectionHeading(
+              title: 'Library',
+              action: 'View all',
+              onAction: onOpenAllDocuments,
+            ),
           ),
-          const Gap(12),
-          _CategoriesGrid(
+          _LibraryList(
             categories: categories,
             iconFor: iconFor,
-            colorFor: colorFor,
             onOpenCategory: onOpenCategory,
           ),
+          const SizedBox(height: 24),
         ],
+      ),
+    );
+  }
+}
+
+class _EditorialGreeting extends StatelessWidget {
+  const _EditorialGreeting();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    final now = DateTime.now();
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 22),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  _greetingFor(now).toUpperCase(),
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                        color: colors.mutedGold,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Officer',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight: FontWeight.w700,
+                        height: 1.05,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _formatDate(now),
+                  style: DutyTheme.mono(
+                    size: 12,
+                    color: scheme.onSurfaceVariant,
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              border: Border.all(color: colors.mutedGold, width: 1),
+            ),
+            child: Icon(
+              Icons.shield_outlined,
+              color: colors.mutedGold,
+              size: 30,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _greetingFor(DateTime now) {
+    final hour = now.hour;
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }
+
+  String _formatDate(DateTime now) {
+    const weekdays = [
+      'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun',
+    ];
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+    ];
+    final weekday = weekdays[now.weekday - 1];
+    final month = months[now.month - 1];
+    return '$weekday  ·  ${now.day.toString().padLeft(2, '0')} $month ${now.year}';
+  }
+}
+
+class _Hairline extends StatelessWidget {
+  const _Hairline({this.margin = EdgeInsets.zero});
+
+  final EdgeInsetsGeometry margin;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return Container(
+      height: 1,
+      margin: margin,
+      color: colors.hairline,
+    );
+  }
+}
+
+class _QuickActionsRow extends StatelessWidget {
+  const _QuickActionsRow({
+    required this.onCalendar,
+    required this.onNotes,
+    required this.onMap,
+    required this.onSearch,
+  });
+
+  final VoidCallback onCalendar;
+  final VoidCallback onNotes;
+  final VoidCallback onMap;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    final entries = <(_QuickActionData, VoidCallback)>[
+      (const _QuickActionData(icon: Icons.event_outlined, label: 'Calendar'),
+          onCalendar),
+      (const _QuickActionData(icon: Icons.notes_outlined, label: 'Notes'),
+          onNotes),
+      (const _QuickActionData(icon: Icons.map_outlined, label: 'Map'), onMap),
+      (const _QuickActionData(icon: Icons.search, label: 'Search'), onSearch),
+    ];
+    return Row(
+      children: [
+        for (var i = 0; i < entries.length; i++) ...[
+          Expanded(
+            child: _QuickAction(
+              data: entries[i].$1,
+              onTap: entries[i].$2,
+            ),
+          ),
+          if (i < entries.length - 1)
+            Container(
+              width: 1,
+              height: 38,
+              color: colors.hairline,
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _QuickActionData {
+  const _QuickActionData({required this.icon, required this.label});
+  final IconData icon;
+  final String label;
+}
+
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({required this.data, required this.onTap});
+
+  final _QuickActionData data;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(data.icon, size: 22, color: scheme.onSurface),
+            const SizedBox(height: 6),
+            Text(
+              data.label.toUpperCase(),
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WestOpsPreview extends StatelessWidget {
+  const _WestOpsPreview({required this.onSelect});
+
+  final void Function(WestOpsFeatureSpec) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 96,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: westOpsFeatureSpecs.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 10),
+        itemBuilder: (context, index) {
+          final spec = westOpsFeatureSpecs[index];
+          return _WestOpsTile(spec: spec, onTap: () => onSelect(spec));
+        },
+      ),
+    );
+  }
+}
+
+class _WestOpsTile extends StatelessWidget {
+  const _WestOpsTile({required this.spec, required this.onTap});
+
+  final WestOpsFeatureSpec spec;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    final scheme = Theme.of(context).colorScheme;
+    return SizedBox(
+      width: 160,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          decoration: BoxDecoration(
+            border: Border.all(color: colors.hairline),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(spec.icon, size: 18, color: spec.color),
+                  const Spacer(),
+                  Icon(
+                    Icons.fiber_manual_record,
+                    size: 8,
+                    color: spec.color,
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                spec.title.toUpperCase(),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                      color: scheme.onSurface,
+                      letterSpacing: 1.2,
+                      fontWeight: FontWeight.w700,
+                    ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 2),
+              Text(
+                spec.subtitle,
+                style: DutyTheme.mono(
+                  size: 10,
+                  color: colors.mutedGold,
+                  letterSpacing: 0.4,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LibraryList extends StatelessWidget {
+  const _LibraryList({
+    required this.categories,
+    required this.iconFor,
+    required this.onOpenCategory,
+  });
+
+  final Map<String, List<PolicyDocument>> categories;
+  final IconData Function(String) iconFor;
+  final void Function(String category, List<PolicyDocument> docs)
+      onOpenCategory;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    final entries = categories.entries.toList();
+    return Column(
+      children: [
+        for (var i = 0; i < entries.length; i++) ...[
+          if (i == 0) _Hairline(margin: EdgeInsets.zero),
+          _LibraryRow(
+            category: entries[i].key,
+            count: entries[i].value.length,
+            icon: iconFor(entries[i].key),
+            onTap: () => onOpenCategory(entries[i].key, entries[i].value),
+          ),
+          Container(height: 1, color: colors.hairline),
+        ],
+      ],
+    );
+  }
+}
+
+class _LibraryRow extends StatelessWidget {
+  const _LibraryRow({
+    required this.category,
+    required this.count,
+    required this.icon,
+    required this.onTap,
+  });
+
+  final String category;
+  final int count;
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: colors.mutedGold),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Text(
+                category,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      color: scheme.onSurface,
+                    ),
+              ),
+            ),
+            Text(
+              count.toString().padLeft(3, '0'),
+              style: DutyTheme.mono(
+                size: 13,
+                color: colors.mutedGold,
+                letterSpacing: 0.6,
+              ),
+            ),
+            const SizedBox(width: 6),
+            Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -451,17 +772,18 @@ class _ErrorState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<DutyColors>()!;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            Icon(Icons.error_outline, size: 48, color: colors.alertRed),
             const SizedBox(height: 16),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),
-            ElevatedButton.icon(
+            OutlinedButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
@@ -473,121 +795,20 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
-class _QuickActionsRow extends StatelessWidget {
-  const _QuickActionsRow({
-    required this.onCalendar,
-    required this.onNotes,
-    required this.onMap,
-    required this.onSearch,
-  });
-
-  final VoidCallback onCalendar;
-  final VoidCallback onNotes;
-  final VoidCallback onMap;
-  final VoidCallback onSearch;
-
-  @override
-  Widget build(BuildContext context) {
-    final actions = <Widget>[
-      QuickActionButton(
-        icon: Icons.event,
-        label: 'Calendar',
-        onPressed: onCalendar,
-      ),
-      QuickActionButton(
-        icon: Icons.notes,
-        label: 'Notes',
-        onPressed: onNotes,
-      ),
-      QuickActionButton(
-        icon: Icons.map,
-        label: 'Map',
-        onPressed: onMap,
-      ),
-      QuickActionButton(
-        icon: Icons.search,
-        label: 'Search',
-        onPressed: onSearch,
-      ),
-    ];
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        for (var i = 0; i < actions.length; i++)
-          actions[i]
-              .animate()
-              .fadeIn(duration: 220.ms, delay: (60 * i).ms)
-              .scale(
-                begin: const Offset(0.92, 0.92),
-                end: const Offset(1, 1),
-                duration: 220.ms,
-                delay: (60 * i).ms,
-                curve: Curves.easeOutCubic,
-              ),
-      ],
-    );
-  }
-}
-
-class _CategoriesGrid extends StatelessWidget {
-  const _CategoriesGrid({
-    required this.categories,
-    required this.iconFor,
-    required this.colorFor,
-    required this.onOpenCategory,
-  });
-
-  final Map<String, List<PolicyDocument>> categories;
-  final IconData Function(String) iconFor;
-  final Color Function(String) colorFor;
-  final void Function(String category, List<PolicyDocument> docs)
-      onOpenCategory;
-
-  @override
-  Widget build(BuildContext context) {
-    final entries = categories.entries.toList();
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: entries.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        childAspectRatio: 1.4,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-      ),
-      itemBuilder: (context, index) {
-        final entry = entries[index];
-        final card = CategoryCard(
-          category: entry.key,
-          documentCount: entry.value.length,
-          icon: iconFor(entry.key),
-          tint: colorFor(entry.key),
-          onTap: () => onOpenCategory(entry.key, entry.value),
-        );
-        return card.animate().fadeIn(
-              duration: 220.ms,
-              delay: (50 * index).ms,
-            );
-      },
-    );
-  }
-}
-
 class _CategorySidebar extends StatelessWidget {
   const _CategorySidebar({
     required this.categories,
+    required this.totalDocumentCount,
     required this.selection,
     required this.iconFor,
-    required this.colorFor,
     required this.onSelectAll,
     required this.onSelectCategory,
   });
 
   final Map<String, List<PolicyDocument>> categories;
+  final int totalDocumentCount;
   final _CategorySelection? selection;
   final IconData Function(String) iconFor;
-  final Color Function(String) colorFor;
   final VoidCallback onSelectAll;
   final void Function(String category, List<PolicyDocument> docs)
       onSelectCategory;
@@ -596,93 +817,108 @@ class _CategorySidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    final scheme = Theme.of(context).colorScheme;
     final allSelected = _selectedCategory == 'All Documents';
 
     return ListView(
-      padding: const EdgeInsets.only(top: 8),
+      padding: EdgeInsets.zero,
       children: [
+        const SizedBox(height: 16),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-          child: Text(
-            'LIBRARY',
-            style: textTheme.labelSmall?.copyWith(
-              color: colors.primary,
-              letterSpacing: 1.4,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SectionHeading(title: 'Library'),
         ),
-        ListTile(
-          leading: Icon(Icons.library_books, color: colors.primary),
-          title: const Text('All Documents'),
-          trailing: _CountChip(value: _totalDocumentCount(), tint: colors.primary),
+        _SidebarRow(
+          label: 'All documents',
+          count: totalDocumentCount,
+          icon: Icons.library_books_outlined,
           selected: allSelected,
           onTap: onSelectAll,
         ),
-        const Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Divider(height: 1),
-        ),
+        Container(height: 1, color: colors.hairline),
+        const SizedBox(height: 16),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 4),
-          child: Text(
-            'CATEGORIES',
-            style: textTheme.labelSmall?.copyWith(
-              color: colors.primary,
-              letterSpacing: 1.4,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: SectionHeading(title: 'Categories'),
         ),
         for (final entry in categories.entries)
-          ListTile(
-            leading: Icon(iconFor(entry.key), color: colorFor(entry.key)),
-            title: Text(
-              entry.key,
-              style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w500),
-            ),
-            trailing: _CountChip(
-              value: entry.value.length,
-              tint: colorFor(entry.key),
-            ),
+          _SidebarRow(
+            label: entry.key,
+            count: entry.value.length,
+            icon: iconFor(entry.key),
             selected: _selectedCategory == entry.key,
             onTap: () => onSelectCategory(entry.key, entry.value),
           ),
+        Container(height: 1, color: colors.hairline),
+        const SizedBox(height: 24),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Text(
+            'JCF DUTY · LIBRARY',
+            style: DutyTheme.mono(
+              size: 10,
+              color: scheme.onSurfaceVariant,
+              letterSpacing: 1.4,
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
       ],
     );
   }
-
-  int _totalDocumentCount() {
-    var total = 0;
-    for (final entry in categories.entries) {
-      total += entry.value.length;
-    }
-    return total;
-  }
 }
 
-class _CountChip extends StatelessWidget {
-  const _CountChip({required this.value, required this.tint});
+class _SidebarRow extends StatelessWidget {
+  const _SidebarRow({
+    required this.label,
+    required this.count,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
 
-  final int value;
-  final Color tint;
+  final String label;
+  final int count;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: tint.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Text(
-        '$value',
-        style: TextStyle(
-          color: tint,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
+    final colors = Theme.of(context).extension<DutyColors>()!;
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: selected
+          ? scheme.primary.withValues(alpha: 0.06)
+          : Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: colors.mutedGold),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: scheme.onSurface,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                ),
+              ),
+              Text(
+                count.toString().padLeft(3, '0'),
+                style: DutyTheme.mono(
+                  size: 12,
+                  color: colors.mutedGold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

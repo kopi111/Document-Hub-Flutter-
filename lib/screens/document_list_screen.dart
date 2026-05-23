@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
-import '../models/document_cache_state.dart';
 import '../services/document_cache_repository.dart';
 import '../services/document_list_preferences.dart';
 import '../widgets/breadcrumb_trail.dart';
-import '../widgets/document_staleness_badge.dart';
 import 'pdf_viewer_screen.dart';
 
 class DocumentListScreen extends StatefulWidget {
@@ -279,7 +277,6 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
       itemCount: _visible.length,
       itemBuilder: (context, index) => _DocumentTile(
         document: _visible[index],
-        cacheState: _cache.stateFor(_visible[index]),
         onOpen: _openDocument,
       ),
     );
@@ -297,7 +294,6 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
       itemCount: _visible.length,
       itemBuilder: (context, index) => _DocumentGridCard(
         document: _visible[index],
-        cacheState: _cache.stateFor(_visible[index]),
         onOpen: _openDocument,
       ),
     );
@@ -313,23 +309,17 @@ class _DocumentListScreenState extends State<DocumentListScreen> {
 class _DocumentTile extends StatelessWidget {
   const _DocumentTile({
     required this.document,
-    required this.cacheState,
     required this.onOpen,
   });
 
   final PolicyDocument document;
-  final DocumentCacheState cacheState;
   final void Function(PolicyDocument) onOpen;
 
   @override
   Widget build(BuildContext context) {
     final isPdf = document.name.endsWith('.pdf');
-    final colors = Theme.of(context).colorScheme;
-    final disabled = !cacheState.isOpenable;
-    final subtitleText = disabled ? 'Not available offline' : document.category;
 
     return ListTile(
-      enabled: !disabled,
       leading: CircleAvatar(
         backgroundColor: isPdf ? Colors.red.shade100 : Colors.blue.shade100,
         child: Icon(
@@ -342,21 +332,9 @@ class _DocumentTile extends StatelessWidget {
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
       ),
-      subtitle: Row(
-        children: [
-          Expanded(
-            child: Text(
-              subtitleText,
-              style: TextStyle(
-                color: disabled ? colors.onSurfaceVariant : null,
-              ),
-            ),
-          ),
-          DocumentStalenessBadge(state: cacheState),
-        ],
-      ),
+      subtitle: Text(document.category),
       trailing: const Icon(Icons.chevron_right),
-      onTap: disabled ? null : () => onOpen(document),
+      onTap: () => onOpen(document),
     );
   }
 }
@@ -364,45 +342,34 @@ class _DocumentTile extends StatelessWidget {
 class _DocumentGridCard extends StatelessWidget {
   const _DocumentGridCard({
     required this.document,
-    required this.cacheState,
     required this.onOpen,
   });
 
   final PolicyDocument document;
-  final DocumentCacheState cacheState;
   final void Function(PolicyDocument) onOpen;
 
   @override
   Widget build(BuildContext context) {
     final isPdf = document.name.endsWith('.pdf');
     final colors = Theme.of(context).colorScheme;
-    final disabled = !cacheState.isOpenable;
-    final captionText = disabled ? 'Not available offline' : document.category;
 
     return Card(
       elevation: 1.5,
       clipBehavior: Clip.antiAlias,
       child: InkWell(
-        onTap: disabled ? null : () => onOpen(document),
+        onTap: () => onOpen(document),
         child: Padding(
           padding: const EdgeInsets.all(12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  CircleAvatar(
-                    backgroundColor:
-                        isPdf ? Colors.red.shade100 : Colors.blue.shade100,
-                    child: Icon(
-                      isPdf ? Icons.picture_as_pdf : Icons.description,
-                      color: isPdf ? Colors.red : Colors.blue,
-                    ),
-                  ),
-                  DocumentStalenessBadge(state: cacheState),
-                ],
+              CircleAvatar(
+                backgroundColor:
+                    isPdf ? Colors.red.shade100 : Colors.blue.shade100,
+                child: Icon(
+                  isPdf ? Icons.picture_as_pdf : Icons.description,
+                  color: isPdf ? Colors.red : Colors.blue,
+                ),
               ),
               const SizedBox(height: 12),
               Expanded(
@@ -418,7 +385,7 @@ class _DocumentGridCard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                captionText,
+                document.category,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(

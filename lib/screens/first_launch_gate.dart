@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/first_launch_preferences.dart';
-import 'app_shell.dart';
+import 'dashboard/services_home_screen.dart';
 import 'eula_screen.dart';
 import 'privacy_notice_screen.dart';
 
@@ -59,7 +59,7 @@ class _FirstLaunchGateState extends State<FirstLaunchGate> {
       case _FirstLaunchStep.eula:
         return EulaScreen(onAccepted: _handleEulaAccepted);
       case _FirstLaunchStep.ready:
-        return const AppShell();
+        return const ServicesHomeScreen();
     }
   }
 }

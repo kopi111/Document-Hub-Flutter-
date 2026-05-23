@@ -6,6 +6,16 @@ import '../../models/westops/missing_person.dart';
 // own transport.
 abstract class MissingPersonsRepository {
   Future<List<MissingPerson>> listAll();
+
+  /// Records that a missing person has been located and flips their status to
+  /// [MissingPerson.statusFound]. Returns the updated record.
+  Future<MissingPerson> markFound({
+    required String id,
+    required DateTime foundDate,
+    required String foundLocation,
+    required String foundBy,
+    String? foundNotes,
+  });
 }
 
 class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
@@ -13,6 +23,29 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
 
   @override
   Future<List<MissingPerson>> listAll() async => _seedRecords;
+
+  @override
+  Future<MissingPerson> markFound({
+    required String id,
+    required DateTime foundDate,
+    required String foundLocation,
+    required String foundBy,
+    String? foundNotes,
+  }) async {
+    final index = _seedRecords.indexWhere((record) => record.id == id);
+    if (index == -1) {
+      throw StateError('No missing person with id $id');
+    }
+    final updated = _seedRecords[index].copyWith(
+      status: MissingPerson.statusFound,
+      foundDate: foundDate,
+      foundLocation: foundLocation,
+      foundBy: foundBy,
+      foundNotes: foundNotes,
+    );
+    _seedRecords[index] = updated;
+    return updated;
+  }
 
   static final List<MissingPerson> _seedRecords = [
     MissingPerson(
@@ -26,6 +59,12 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
       description: 'Wearing a navy school uniform; last seen walking from school.',
       contactPerson: 'Mrs Bailey (mother)',
       contactPhoneNumber: '876-555-0301',
+      photoUrl: 'https://ui-avatars.com/api/?name=Shanique+Bailey&size=256&background=random&color=fff&bold=true',
+      investigatingOfficer: 'D/Cpl. Tameka Robinson #14237',
+      investigatingOfficerSupervisor: 'D/Insp. Howard McKenzie #08891',
+      stationContactNumber: '876-967-1561',
+      stationName: 'Denham Town Police Station',
+      stationNumber: 'STN-DT-014',
       status: 'Missing',
     ),
     MissingPerson(
@@ -39,6 +78,12 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
       description: 'Suffers from Alzheimer\'s; wandered from the geriatric ward.',
       contactPerson: 'Detective Cpl. Walker',
       contactPhoneNumber: '876-555-0302',
+      photoUrl: 'https://ui-avatars.com/api/?name=Karlton+Reid&size=256&background=random&color=fff&bold=true',
+      investigatingOfficer: 'D/Cpl. Andrew Brown #11542',
+      investigatingOfficerSupervisor: 'D/Sgt. Patricia Lyons #07209',
+      stationContactNumber: '876-927-1640',
+      stationName: 'Mona Police Post',
+      stationNumber: 'STN-MN-006',
       status: 'Missing',
     ),
     MissingPerson(
@@ -52,6 +97,12 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
       description: 'Tall, slim build; last seen wearing a red Liverpool jersey.',
       contactPerson: 'Mr Grant (father)',
       contactPhoneNumber: '876-555-0303',
+      photoUrl: 'https://ui-avatars.com/api/?name=Akeem+Grant&size=256&background=random&color=fff&bold=true',
+      investigatingOfficer: 'D/Cpl. Marcia Wright #13876',
+      investigatingOfficerSupervisor: 'D/Insp. Garfield Salmon #09102',
+      stationContactNumber: '876-952-1557',
+      stationName: 'Barnett Street Police Station',
+      stationNumber: 'STN-BS-021',
       status: 'Missing',
     ),
     MissingPerson(
@@ -65,6 +116,12 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
       description: 'Tourist from Portmore; reported missing by travel companion.',
       contactPerson: 'Ms Stewart (friend)',
       contactPhoneNumber: '876-555-0304',
+      photoUrl: 'https://ui-avatars.com/api/?name=Ann-Marie+Spence&size=256&background=random&color=fff&bold=true',
+      investigatingOfficer: 'D/Cpl. Latisha Powell #15011',
+      investigatingOfficerSupervisor: 'D/Sgt. Owen Bennett #08456',
+      stationContactNumber: '876-957-4267',
+      stationName: 'Negril Police Station',
+      stationNumber: 'STN-NG-038',
       status: 'Missing',
     ),
     MissingPerson(
@@ -78,6 +135,12 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
       description: 'Special-needs child; non-verbal. Wearing yellow t-shirt.',
       contactPerson: 'Mrs Patterson (guardian)',
       contactPhoneNumber: '876-555-0305',
+      photoUrl: 'https://ui-avatars.com/api/?name=Joel+Patterson&size=256&background=random&color=fff&bold=true',
+      investigatingOfficer: 'D/Cpl. Junior Henry #12903',
+      investigatingOfficerSupervisor: 'D/Insp. Sandra Allen #07814',
+      stationContactNumber: '876-984-2305',
+      stationName: 'Spanish Town Police Station',
+      stationNumber: 'STN-ST-019',
       status: 'Missing',
     ),
     MissingPerson(
@@ -91,6 +154,12 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
       description: 'Left work at MegaMart and did not return home.',
       contactPerson: 'Mr Brown (brother)',
       contactPhoneNumber: '876-555-0306',
+      photoUrl: 'https://ui-avatars.com/api/?name=Latoya+Brown&size=256&background=random&color=fff&bold=true',
+      investigatingOfficer: 'D/Cpl. Devon Chambers #14502',
+      investigatingOfficerSupervisor: 'D/Sgt. Carmen Wilson #08123',
+      stationContactNumber: '876-926-8121',
+      stationName: 'Half-Way-Tree Police Station',
+      stationNumber: 'STN-HWT-001',
       status: 'Missing',
     ),
     MissingPerson(
@@ -104,6 +173,12 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
       description: 'Runaway from foster placement; may be heading to Kingston.',
       contactPerson: 'CPFSA caseworker',
       contactPhoneNumber: '876-555-0307',
+      photoUrl: 'https://ui-avatars.com/api/?name=Devontae+Forbes&size=256&background=random&color=fff&bold=true',
+      investigatingOfficer: 'D/Cons. Roxanne Foster #16289',
+      investigatingOfficerSupervisor: 'D/Cpl. Errol Thompson #11034',
+      stationContactNumber: '876-982-2002',
+      stationName: 'Yallahs Police Station',
+      stationNumber: 'STN-YL-042',
       status: 'Missing',
     ),
   ];
