@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/document.dart';
 import '../../services/github_service.dart';
+import '../../theme/jcf_palette.dart';
 import '../document_list_screen.dart';
 import '../search_results_screen.dart';
 
@@ -274,13 +275,13 @@ class _CategoryCard extends StatelessWidget {
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: scheme.outlineVariant),
+            border: Border.all(color: JcfPalette.hairline),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(_iconFor(name), color: scheme.primary, size: 28),
+              Icon(_iconFor(name), color: JcfPalette.iconDefault, size: 28),
               const Spacer(),
               Text(
                 name,

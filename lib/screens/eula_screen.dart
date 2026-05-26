@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/jcf_palette.dart';
+
 class EulaScreen extends StatefulWidget {
   const EulaScreen({super.key, required this.onAccepted});
 
@@ -39,6 +41,10 @@ class _EulaScreenState extends State<EulaScreen> {
               const SizedBox(height: 8),
               FilledButton(
                 onPressed: _termsConfirmed ? widget.onAccepted : null,
+                style: FilledButton.styleFrom(
+                  backgroundColor: JcfPalette.accent,
+                  foregroundColor: JcfPalette.onAccent,
+                ),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Text('Continue'),

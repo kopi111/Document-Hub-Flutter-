@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/notes/note.dart';
 import '../../services/notes/notes_repository.dart';
+import '../../theme/jcf_palette.dart';
 import '../../widgets/breadcrumb_trail.dart';
 
 class NotesScreen extends StatefulWidget {
@@ -60,6 +61,8 @@ class _NotesScreenState extends State<NotesScreen> {
       body: _buildBody(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(),
+        backgroundColor: JcfPalette.accent,
+        foregroundColor: JcfPalette.onAccent,
         icon: const Icon(Icons.add),
         label: const Text('New note'),
       ),
@@ -114,6 +117,7 @@ class _NotesScreenState extends State<NotesScreen> {
       itemBuilder: (context, index) {
         final note = _notes[index];
         return ListTile(
+          tileColor: Theme.of(context).colorScheme.surface,
           title: Text(note.title.isEmpty ? 'Untitled' : note.title),
           subtitle: Text(
             note.body,
@@ -122,6 +126,7 @@ class _NotesScreenState extends State<NotesScreen> {
           ),
           trailing: IconButton(
             icon: const Icon(Icons.delete_outline),
+            color: JcfPalette.danger,
             tooltip: 'Delete note',
             onPressed: () => _confirmDelete(note),
           ),
@@ -143,6 +148,10 @@ class _NotesScreenState extends State<NotesScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: JcfPalette.danger,
+              foregroundColor: JcfPalette.onDanger,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Delete'),
           ),

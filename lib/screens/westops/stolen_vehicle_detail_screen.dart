@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/westops/stolen_vehicle.dart';
+import '../../theme/jcf_palette.dart';
 import '../../widgets/breadcrumb_trail.dart';
 
 class StolenVehicleDetailScreen extends StatelessWidget {
@@ -87,8 +88,8 @@ class _HeaderCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 32,
-              backgroundColor: Colors.indigo.shade100,
-              child: const Icon(Icons.directions_car, size: 36, color: Colors.indigo),
+              backgroundColor: JcfPalette.surface,
+              child: const Icon(Icons.directions_car, size: 36, color: JcfPalette.accent),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -110,7 +111,8 @@ class _HeaderCard extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 6),
-                  _StatusChip(status: vehicle.status),
+                  if (vehicle.status != null && vehicle.status!.isNotEmpty)
+                    _StatusChip(status: vehicle.status!),
                 ],
               ),
             ),
@@ -124,27 +126,33 @@ class _HeaderCard extends StatelessWidget {
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.status});
 
-  final String? status;
+  final String status;
 
   @override
   Widget build(BuildContext context) {
-    final label = status;
-    if (label == null || label.isEmpty) return const SizedBox.shrink();
+    final (bgColor, fgColor) = _statusColors(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.indigo.shade100,
+        color: bgColor,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        label,
-        style: const TextStyle(
-          color: Color(0xFF283593),
+        status,
+        style: TextStyle(
+          color: fgColor,
           fontWeight: FontWeight.w600,
           fontSize: 12,
         ),
       ),
     );
+  }
+
+  (Color bg, Color fg) _statusColors(String status) {
+    final lower = status.toLowerCase();
+    if (lower == 'stolen') return (JcfPalette.accent, JcfPalette.onAccent);
+    if (lower == 'recovered') return (JcfPalette.success, JcfPalette.onDanger);
+    return (JcfPalette.textDisabled, JcfPalette.textPrimary);
   }
 }
 

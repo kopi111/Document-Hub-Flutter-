@@ -1,11 +1,10 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/westops/missing_person.dart';
 import '../../services/westops/missing_persons_repository.dart';
-import '../../theme/duty_theme.dart';
+import '../../theme/nam_style.dart';
 import '../../widgets/breadcrumb_trail.dart';
-import '../../widgets/editorial/mugshot_placeholder.dart';
+import '../../widgets/westops/nam_person_widgets.dart';
 import 'mark_found_screen.dart';
 
 class MissingDetailScreen extends StatefulWidget {
@@ -50,47 +49,74 @@ class _MissingDetailScreenState extends State<MissingDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final person = _person;
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(person.fullName),
-        bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
-      ),
-      floatingActionButton: person.isFound
-          ? null
-          : FloatingActionButton.extended(
-              onPressed: _markFound,
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('Mark as Found'),
+    return Theme(
+      data: NamStyle.theme(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(person.fullName),
+          bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
+        ),
+        floatingActionButton: person.isFound
+            ? null
+            : FloatingActionButton.extended(
+                onPressed: _markFound,
+                backgroundColor: NamStyle.gold,
+                foregroundColor: NamStyle.onGold,
+                icon: const Icon(Icons.check_circle_outline),
+                label: Text(
+                  'Mark as Found',
+                  style: NamStyle.title(
+                    size: 14,
+                    weight: FontWeight.w700,
+                    color: NamStyle.onGold,
+                  ),
+                ),
+              ),
+        body: ListView(
+          padding: const EdgeInsets.only(bottom: 96),
+          children: [
+            NamHeroPortrait(
+              heroTag: 'missing:${person.id}',
+              initials: _initialsFor(person),
+              photoUrl: person.photoUrl,
+              overlay: _Identity(person: person),
             ),
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _PortraitHeader(person: person),
-          _IdentitySlab(person: person),
-          _DetailRow(label: 'Gender', value: person.gender),
-          _DetailRow(label: 'Date of birth', value: _formatDate(person.dateOfBirth)),
-          _DetailRow(label: 'Reported', value: _formatDate(person.reportedDate)),
-          _DetailRow(label: 'Last seen', value: person.lastSeenLocation),
-          _DetailRow(label: 'Description', value: person.description),
-          _DetailRow(label: 'Contact person', value: person.contactPerson),
-          _DetailRow(label: 'Contact phone', value: person.contactPhoneNumber),
-          _DetailRow(label: 'Investigating officer', value: person.investigatingOfficer),
-          _DetailRow(label: 'Supervisor', value: person.investigatingOfficerSupervisor),
-          _DetailRow(label: 'Station', value: person.stationName),
-          _DetailRow(label: 'Station number', value: person.stationNumber),
-          _DetailRow(label: 'Station phone', value: person.stationContactNumber),
-          _DetailRow(label: 'Status', value: person.status),
-          _DetailRow(label: 'Reference ID', value: person.id),
-          if (person.isFound) ...[
-            _DetailRow(label: 'Found on', value: _formatDate(person.foundDate)),
-            _DetailRow(label: 'Found location', value: person.foundLocation),
-            _DetailRow(label: 'Recovered by', value: person.foundBy),
-            _DetailRow(label: 'Found notes', value: person.foundNotes),
+            const SizedBox(height: 16),
+            NamDetailCard(rows: _rows(person)),
           ],
-          const SizedBox(height: 88),
-        ],
+        ),
       ),
     );
+  }
+
+  List<NamDetailRow> _rows(MissingPerson person) {
+    final entries = <String, String?>{
+      'Gender': person.gender,
+      'Date of birth': _formatDate(person.dateOfBirth),
+      'Reported': _formatDate(person.reportedDate),
+      'Last seen': person.lastSeenLocation,
+      'Description': person.description,
+      'Contact person': person.contactPerson,
+      'Contact phone': person.contactPhoneNumber,
+      'Investigating officer': person.investigatingOfficer,
+      'Supervisor': person.investigatingOfficerSupervisor,
+      'Station': person.stationName,
+      'Station number': person.stationNumber,
+      'Station phone': person.stationContactNumber,
+      'Status': person.status,
+      'Reference ID': person.id,
+      if (person.isFound) ...{
+        'Found on': _formatDate(person.foundDate),
+        'Found location': person.foundLocation,
+        'Recovered by': person.foundBy,
+        'Found notes': person.foundNotes,
+      },
+    };
+    return [
+      for (final entry in entries.entries)
+        if (entry.value != null && entry.value!.isNotEmpty)
+          NamDetailRow(label: entry.key, value: entry.value!),
+    ];
   }
 
   List<BreadcrumbSegment> _breadcrumbSegments(BuildContext context) {
@@ -106,6 +132,12 @@ class _MissingDetailScreenState extends State<MissingDetailScreen> {
     ];
   }
 
+  String _initialsFor(MissingPerson person) {
+    final first = person.firstName.isNotEmpty ? person.firstName[0] : '?';
+    final last = person.lastName.isNotEmpty ? person.lastName[0] : '';
+    return '$first$last';
+  }
+
   String? _formatDate(DateTime? date) {
     if (date == null) return null;
     final year = date.year.toString().padLeft(4, '0');
@@ -115,150 +147,35 @@ class _MissingDetailScreenState extends State<MissingDetailScreen> {
   }
 }
 
-class _PortraitHeader extends StatelessWidget {
-  const _PortraitHeader({required this.person});
+class _Identity extends StatelessWidget {
+  const _Identity({required this.person});
+
   final MissingPerson person;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    final initials = _initialsFor(person);
-    final url = person.photoUrl;
-    final body = (url == null || url.isEmpty)
-        ? MugshotPlaceholder(initials: initials, tint: colors.missingTeal)
-        : CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.cover,
-            errorWidget: (_, url, error) => MugshotPlaceholder(
-              initials: initials,
-              tint: colors.missingTeal,
-            ),
-          );
-    return AspectRatio(
-      aspectRatio: 4 / 3,
-      child: Hero(
-        tag: 'missing:${person.id}',
-        child: ClipRect(child: body),
-      ),
-    );
-  }
-
-  String _initialsFor(MissingPerson person) {
-    final first = person.firstName.isNotEmpty ? person.firstName[0] : '?';
-    final last = person.lastName.isNotEmpty ? person.lastName[0] : '';
-    return '$first$last';
-  }
-}
-
-class _IdentitySlab extends StatelessWidget {
-  const _IdentitySlab({required this.person});
-  final MissingPerson person;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'CASE / ${person.id}',
-            style: DutyTheme.mono(
-              size: 11,
-              color: colors.missingTeal,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            person.fullName,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: scheme.onSurface,
-                  height: 1.05,
-                ),
-          ),
-          if (person.isFound) ...[
-            const SizedBox(height: 10),
-            const _FoundBadge(),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            NamCaseChip(caseId: person.id),
+            if (person.isFound) ...[
+              const SizedBox(width: 10),
+              const NamStatusChip(
+                label: 'Found',
+                color: NamStyle.found,
+                icon: Icons.check_circle,
+              ),
+            ],
           ],
-          const SizedBox(height: 12),
-          Container(height: 1, color: colors.hairline),
-        ],
-      ),
-    );
-  }
-}
-
-class _FoundBadge extends StatelessWidget {
-  const _FoundBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    const found = Color(0xFF1B7A3D);
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: found.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: found),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.check_circle, size: 14, color: found),
-          const SizedBox(width: 6),
-          Text(
-            'FOUND',
-            style: DutyTheme.mono(
-              size: 11,
-              weight: FontWeight.w700,
-              color: found,
-              letterSpacing: 1.4,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
-
-  final String label;
-  final String? value;
-
-  @override
-  Widget build(BuildContext context) {
-    if (value == null || value!.isEmpty) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: DutyTheme.mono(
-              size: 10,
-              color: colors.mutedGold,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value!,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: scheme.onSurface,
-                ),
-          ),
-          const SizedBox(height: 12),
-          Container(height: 1, color: colors.hairline),
-        ],
-      ),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          person.fullName,
+          style: NamStyle.title(size: 26, weight: FontWeight.w700, height: 1.05),
+        ),
+      ],
     );
   }
 }

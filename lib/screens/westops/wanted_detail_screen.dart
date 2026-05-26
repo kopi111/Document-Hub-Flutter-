@@ -1,10 +1,9 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/westops/wanted_person.dart';
-import '../../theme/duty_theme.dart';
+import '../../theme/nam_style.dart';
 import '../../widgets/breadcrumb_trail.dart';
-import '../../widgets/editorial/mugshot_placeholder.dart';
+import '../../widgets/westops/nam_person_widgets.dart';
 
 class WantedDetailScreen extends StatelessWidget {
   const WantedDetailScreen({super.key, required this.person});
@@ -13,33 +12,53 @@ class WantedDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(person.fullName),
-        bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
-      ),
-      body: ListView(
-        padding: EdgeInsets.zero,
-        children: [
-          _PortraitHeader(person: person),
-          _IdentitySlab(person: person),
-          _DetailRow(label: 'Alias', value: person.alias),
-          _DetailRow(label: 'Gender', value: person.gender),
-          _DetailRow(label: 'Date of birth', value: _formatDate(person.dateOfBirth)),
-          _DetailRow(label: 'Offence', value: person.crimeDescription),
-          _DetailRow(label: 'Reward (JMD)', value: _formatReward(person.rewardAmount)),
-          _DetailRow(label: 'Contact phone', value: person.contactPhoneNumber),
-          _DetailRow(label: 'Investigating officer', value: person.investigatingOfficer),
-          _DetailRow(label: 'Supervisor', value: person.investigatingOfficerSupervisor),
-          _DetailRow(label: 'Station', value: person.stationName),
-          _DetailRow(label: 'Station number', value: person.stationNumber),
-          _DetailRow(label: 'Station phone', value: person.stationContactNumber),
-          _DetailRow(label: 'Status', value: person.status),
-          _DetailRow(label: 'Reference ID', value: person.id),
-          const SizedBox(height: 24),
-        ],
+    return Theme(
+      data: NamStyle.theme(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(person.fullName),
+          bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
+        ),
+        body: ListView(
+          padding: const EdgeInsets.only(bottom: 28),
+          children: [
+            NamHeroPortrait(
+              heroTag: 'wanted:${person.id}',
+              initials: _initialsFor(person),
+              photoUrl: person.photoUrl,
+              overlay: _Identity(person: person),
+            ),
+            if (person.rewardAmount != null) ...[
+              const SizedBox(height: 16),
+              _RewardBanner(amount: person.rewardAmount!),
+            ],
+            const SizedBox(height: 16),
+            NamDetailCard(rows: _rows()),
+          ],
+        ),
       ),
     );
+  }
+
+  List<NamDetailRow> _rows() {
+    final entries = <String, String?>{
+      'Gender': person.gender,
+      'Date of birth': _formatDate(person.dateOfBirth),
+      'Offence': person.crimeDescription,
+      'Contact phone': person.contactPhoneNumber,
+      'Investigating officer': person.investigatingOfficer,
+      'Supervisor': person.investigatingOfficerSupervisor,
+      'Station': person.stationName,
+      'Station number': person.stationNumber,
+      'Station phone': person.stationContactNumber,
+      'Status': person.status,
+      'Reference ID': person.id,
+    };
+    return [
+      for (final entry in entries.entries)
+        if (entry.value != null && entry.value!.isNotEmpty)
+          NamDetailRow(label: entry.key, value: entry.value!),
+    ];
   }
 
   List<BreadcrumbSegment> _breadcrumbSegments(BuildContext context) {
@@ -55,6 +74,12 @@ class WantedDetailScreen extends StatelessWidget {
     ];
   }
 
+  String _initialsFor(WantedPerson person) {
+    final first = person.firstName.isNotEmpty ? person.firstName[0] : '?';
+    final last = person.lastName.isNotEmpty ? person.lastName[0] : '';
+    return '$first$last';
+  }
+
   String? _formatDate(DateTime? date) {
     if (date == null) return null;
     final year = date.year.toString().padLeft(4, '0');
@@ -62,124 +87,78 @@ class WantedDetailScreen extends StatelessWidget {
     final day = date.day.toString().padLeft(2, '0');
     return '$year-$month-$day';
   }
-
-  String? _formatReward(double? reward) {
-    if (reward == null) return null;
-    return '\$${reward.toStringAsFixed(0)}';
-  }
 }
 
-class _PortraitHeader extends StatelessWidget {
-  const _PortraitHeader({required this.person});
+class _Identity extends StatelessWidget {
+  const _Identity({required this.person});
+
   final WantedPerson person;
 
   @override
   Widget build(BuildContext context) {
-    final initials = _initialsFor(person);
-    final url = person.photoUrl;
-    final body = (url == null || url.isEmpty)
-        ? MugshotPlaceholder(initials: initials)
-        : CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.cover,
-            errorWidget: (_, url, error) =>
-                MugshotPlaceholder(initials: initials),
-          );
-    return AspectRatio(
-      aspectRatio: 4 / 3,
-      child: Hero(
-        tag: 'wanted:${person.id}',
-        child: ClipRect(child: body),
-      ),
-    );
-  }
-
-  String _initialsFor(WantedPerson person) {
-    final first = person.firstName.isNotEmpty ? person.firstName[0] : '?';
-    final last = person.lastName.isNotEmpty ? person.lastName[0] : '';
-    return '$first$last';
-  }
-}
-
-class _IdentitySlab extends StatelessWidget {
-  const _IdentitySlab({required this.person});
-  final WantedPerson person;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 18),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'CASE / ${person.id}'.toUpperCase(),
-            style: DutyTheme.mono(
-              size: 11,
-              color: colors.mutedGold,
-              letterSpacing: 1.2,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            person.fullName,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  color: scheme.onSurface,
-                  height: 1.05,
-                ),
-          ),
-          if (person.alias != null && person.alias!.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              'a.k.a. "${person.alias}"',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-            ),
-          ],
-          const SizedBox(height: 12),
-          Container(height: 1, color: colors.hairline),
-        ],
-      ),
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
-
-  final String label;
-  final String? value;
-
-  @override
-  Widget build(BuildContext context) {
-    if (value == null || value!.isEmpty) return const SizedBox.shrink();
-    final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label.toUpperCase(),
-            style: DutyTheme.mono(
-              size: 10,
-              color: colors.mutedGold,
-              letterSpacing: 1.2,
-            ),
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        NamCaseChip(caseId: person.id),
+        const SizedBox(height: 12),
+        Text(
+          person.fullName,
+          style: NamStyle.title(size: 26, weight: FontWeight.w700, height: 1.05),
+        ),
+        if (person.alias != null && person.alias!.isNotEmpty) ...[
           const SizedBox(height: 4),
           Text(
-            value!,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: scheme.onSurface,
-                ),
+            'a.k.a. "${person.alias}"',
+            style: NamStyle.body(size: 14),
           ),
-          const SizedBox(height: 12),
-          Container(height: 1, color: colors.hairline),
+        ],
+      ],
+    );
+  }
+}
+
+class _RewardBanner extends StatelessWidget {
+  const _RewardBanner({required this.amount});
+
+  final double amount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: NamStyle.pageInset),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: NamStyle.gold.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(NamStyle.cardRadius),
+        border: Border.all(color: NamStyle.gold.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.workspace_premium_outlined,
+              size: 22, color: NamStyle.gold),
+          const SizedBox(width: 14),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'REWARD FOR INFORMATION',
+                style: NamStyle.mono(
+                  size: 10,
+                  color: NamStyle.textSecondary,
+                  letterSpacing: 1.2,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'JMD \$${amount.toStringAsFixed(0)}',
+                style: NamStyle.title(
+                  size: 22,
+                  weight: FontWeight.w700,
+                  color: NamStyle.gold,
+                ),
+              ),
+            ],
+          ),
         ],
       ),
     );

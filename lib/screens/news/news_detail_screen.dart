@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../models/news/news_article.dart';
+import '../../theme/jcf_palette.dart';
 import '../../models/news/news_priority.dart';
 import '../../widgets/breadcrumb_trail.dart';
 import '../../widgets/news/news_category_label.dart';
@@ -16,7 +17,7 @@ class NewsDetailScreen extends StatelessWidget {
 
   static const double _heroAspectRatio = 16 / 9;
   static const int _breadcrumbTitleMaxLength = 28;
-  static const Color _highlightYellow = Color(0xFFFFF59D);
+  static const Color _highlightYellow = JcfPalette.accent;
 
   @override
   Widget build(BuildContext context) {

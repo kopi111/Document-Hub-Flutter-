@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/westops/traffic_code.dart';
+import '../../theme/jcf_palette.dart';
 import '../../widgets/breadcrumb_trail.dart';
 
 class TrafficCodeDetailScreen extends StatelessWidget {
@@ -84,11 +85,11 @@ class _HeaderCard extends StatelessWidget {
           children: [
             CircleAvatar(
               radius: 32,
-              backgroundColor: Colors.teal.shade100,
+              backgroundColor: JcfPalette.surfaceRaised,
               child: Text(
                 entry.code,
                 style: const TextStyle(
-                  color: Colors.teal,
+                  color: JcfPalette.accent,
                   fontWeight: FontWeight.w700,
                   fontSize: 16,
                 ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/news/news_article.dart';
 import '../../services/news/news_repository.dart';
 import '../../theme/duty_theme.dart';
+import '../../theme/jcf_palette.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/breadcrumb_trail.dart';
 import '../../widgets/editorial/shared_axis_route.dart';
@@ -236,7 +237,7 @@ class _NewsErrorState extends StatelessWidget {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 96),
       children: [
-        const Icon(Icons.error_outline, size: 64, color: Colors.red),
+        Icon(Icons.error_outline, size: 64, color: JcfPalette.danger),
         const SizedBox(height: 16),
         Text(message, textAlign: TextAlign.center),
         const SizedBox(height: 16),

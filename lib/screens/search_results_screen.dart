@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../widgets/breadcrumb_trail.dart';
+import '../theme/jcf_palette.dart';
 import 'pdf_viewer_screen.dart';
 
 class SearchResultsScreen extends StatefulWidget {
@@ -82,7 +83,7 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.search, size: 64, color: Colors.grey),
+                  Icon(Icons.search, size: 64, color: JcfPalette.iconDefault),
                   SizedBox(height: 16),
                   Text('Type to search documents'),
                 ],
@@ -98,11 +99,11 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                     return ListTile(
                       leading: CircleAvatar(
                         backgroundColor: isPdf
-                            ? Colors.red.shade100
-                            : Colors.blue.shade100,
+                            ? JcfPalette.danger.withValues(alpha: 0.15)
+                            : JcfPalette.info.withValues(alpha: 0.15),
                         child: Icon(
                           isPdf ? Icons.picture_as_pdf : Icons.description,
-                          color: isPdf ? Colors.red : Colors.blue,
+                          color: isPdf ? JcfPalette.danger : JcfPalette.info,
                         ),
                       ),
                       title: Text(
@@ -110,7 +111,10 @@ class _SearchResultsScreenState extends State<SearchResultsScreen> {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      subtitle: Text(doc.category),
+                      subtitle: Text(
+                        doc.category,
+                        style: const TextStyle(color: JcfPalette.textSecondary),
+                      ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => _openDocument(doc),
                     );

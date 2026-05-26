@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/news/news_priority.dart';
+import '../../theme/jcf_palette.dart';
 import '../../models/notifications/app_notification.dart';
 import '../../services/news/in_memory_news_repository.dart';
 import '../../services/news/news_repository.dart';
@@ -167,7 +168,7 @@ class _NotificationTile extends StatelessWidget {
               ),
         ),
       ),
-      trailing: const Icon(Icons.chevron_right),
+      trailing: const Icon(Icons.chevron_right, color: JcfPalette.iconDefault),
       onTap: onTap,
     );
   }
@@ -192,15 +193,14 @@ class _EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.notifications_off_outlined,
-                size: 64, color: colors.onSurfaceVariant),
+            const Icon(Icons.notifications_off_outlined,
+                size: 64, color: JcfPalette.iconDefault),
             const SizedBox(height: 12),
             Text(
               'No notifications',
@@ -233,7 +233,7 @@ class _ErrorView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 64, color: Colors.red),
+            const Icon(Icons.error_outline, size: 64, color: JcfPalette.iconCritical),
             const SizedBox(height: 12),
             Text(message, textAlign: TextAlign.center),
             const SizedBox(height: 16),

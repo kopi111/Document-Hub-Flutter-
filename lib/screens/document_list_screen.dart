@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/document.dart';
 import '../services/document_cache_repository.dart';
 import '../services/document_list_preferences.dart';
+import '../theme/jcf_palette.dart';
 import '../widgets/breadcrumb_trail.dart';
 import 'pdf_viewer_screen.dart';
 
@@ -321,10 +322,12 @@ class _DocumentTile extends StatelessWidget {
 
     return ListTile(
       leading: CircleAvatar(
-        backgroundColor: isPdf ? Colors.red.shade100 : Colors.blue.shade100,
+        backgroundColor: isPdf
+            ? JcfPalette.danger.withValues(alpha: 0.15)
+            : JcfPalette.info.withValues(alpha: 0.15),
         child: Icon(
           isPdf ? Icons.picture_as_pdf : Icons.description,
-          color: isPdf ? Colors.red : Colors.blue,
+          color: isPdf ? JcfPalette.danger : JcfPalette.info,
         ),
       ),
       title: Text(
@@ -364,11 +367,12 @@ class _DocumentGridCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               CircleAvatar(
-                backgroundColor:
-                    isPdf ? Colors.red.shade100 : Colors.blue.shade100,
+                backgroundColor: isPdf
+                    ? JcfPalette.danger.withValues(alpha: 0.15)
+                    : JcfPalette.info.withValues(alpha: 0.15),
                 child: Icon(
                   isPdf ? Icons.picture_as_pdf : Icons.description,
-                  color: isPdf ? Colors.red : Colors.blue,
+                  color: isPdf ? JcfPalette.danger : JcfPalette.info,
                 ),
               ),
               const SizedBox(height: 12),

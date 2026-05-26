@@ -3,6 +3,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../../models/calendar/reminder.dart';
 import '../../services/calendar/reminder_repository.dart';
+import '../../theme/jcf_palette.dart';
 import '../../widgets/breadcrumb_trail.dart';
 
 class CalendarScreen extends StatefulWidget {
@@ -58,15 +59,15 @@ class _CalendarScreenState extends State<CalendarScreen> {
                 setState(() => _calendarFormat = format),
             calendarStyle: CalendarStyle(
               todayDecoration: BoxDecoration(
-                color: colors.primary.withValues(alpha: 0.4),
+                color: JcfPalette.info.withValues(alpha: 0.4),
                 shape: BoxShape.circle,
               ),
               selectedDecoration: BoxDecoration(
-                color: colors.primary,
+                color: JcfPalette.primary,
                 shape: BoxShape.circle,
               ),
               markerDecoration: BoxDecoration(
-                color: colors.tertiary,
+                color: JcfPalette.warning,
                 shape: BoxShape.circle,
               ),
             ),

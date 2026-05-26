@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../theme/jcf_palette.dart';
+
 class PrivacyNoticeScreen extends StatelessWidget {
   const PrivacyNoticeScreen({super.key, required this.onAcknowledged});
 
@@ -24,6 +26,10 @@ class PrivacyNoticeScreen extends StatelessWidget {
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: onAcknowledged,
+                style: FilledButton.styleFrom(
+                  backgroundColor: JcfPalette.accent,
+                  foregroundColor: JcfPalette.onAccent,
+                ),
                 child: const Padding(
                   padding: EdgeInsets.symmetric(vertical: 12),
                   child: Text('I have read this notice'),

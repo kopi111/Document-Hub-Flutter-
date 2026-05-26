@@ -1,13 +1,12 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/westops/wanted_person.dart';
 import '../../services/westops/wanted_persons_repository.dart';
-import '../../theme/duty_theme.dart';
+import '../../theme/nam_style.dart';
 import '../../widgets/app_drawer.dart';
 import '../../widgets/breadcrumb_trail.dart';
-import '../../widgets/editorial/mugshot_placeholder.dart';
 import '../../widgets/editorial/shared_axis_route.dart';
+import '../../widgets/westops/nam_person_widgets.dart';
 import 'wanted_detail_screen.dart';
 
 class WantedListScreen extends StatefulWidget {
@@ -92,13 +91,16 @@ class _WantedListScreenState extends State<WantedListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      drawer: const AppDrawer(),
-      appBar: AppBar(
-        title: const Text('Wanted Persons'),
-        bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
+    return Theme(
+      data: NamStyle.theme(),
+      child: Scaffold(
+        drawer: const AppDrawer(),
+        appBar: AppBar(
+          title: const Text('Wanted Persons'),
+          bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
+        ),
+        body: _buildBody(),
       ),
-      body: _buildBody(),
     );
   }
 
@@ -116,87 +118,34 @@ class _WantedListScreenState extends State<WantedListScreen> {
   }
 
   Widget _buildBody() {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) return Center(child: Text(_error!));
+    if (_loading) {
+      return const Center(
+        child: CircularProgressIndicator(color: NamStyle.gold),
+      );
+    }
+    if (_error != null) {
+      return Center(
+        child: Text(_error!, style: NamStyle.body(color: NamStyle.textPrimary)),
+      );
+    }
     return Column(
       children: [
-        _SearchField(
+        NamSearchField(
           controller: _searchController,
+          hint: 'Search by name, alias or offence',
           onChanged: _onSearchChanged,
           onClear: _clearSearch,
         ),
-        _ResultsHeader(count: _visible.length),
+        NamResultCount(count: _visible.length, label: 'WANTED'),
         Expanded(
           child: RefreshIndicator(
+            color: NamStyle.gold,
+            backgroundColor: NamStyle.surface,
             onRefresh: _loadRecords,
             child: _WantedList(persons: _visible, onOpen: _openDetail),
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({
-    required this.controller,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        style: DutyTheme.mono(size: 13),
-        decoration: InputDecoration(
-          hintText: 'Search by name, alias or offence',
-          hintStyle: DutyTheme.mono(
-            size: 12,
-            color: colors.mutedGold,
-            letterSpacing: 0.4,
-          ),
-          prefixIcon: Icon(Icons.search, size: 18, color: colors.mutedGold),
-          suffixIcon: controller.text.isEmpty
-              ? null
-              : IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  tooltip: 'Clear search',
-                  onPressed: onClear,
-                ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ResultsHeader extends StatelessWidget {
-  const _ResultsHeader({required this.count});
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Row(
-        children: [
-          Container(width: 18, height: 1, color: colors.mutedGold),
-          const SizedBox(width: 10),
-          Text(
-            '${count.toString().padLeft(3, '0')}  WANTED',
-            style: Theme.of(context).textTheme.labelLarge,
-          ),
-        ],
-      ),
     );
   }
 }
@@ -211,18 +160,27 @@ class _WantedList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (persons.isEmpty) {
       return ListView(
-        children: const [
-          SizedBox(height: 120),
-          Center(child: Text('No wanted persons found')),
+        children: [
+          const SizedBox(height: 120),
+          Center(
+            child: Text(
+              'No wanted persons found',
+              style: NamStyle.body(color: NamStyle.textSecondary),
+            ),
+          ),
         ],
       );
     }
-    final colors = Theme.of(context).extension<DutyColors>()!;
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.fromLTRB(
+        NamStyle.pageInset,
+        4,
+        NamStyle.pageInset,
+        24,
+      ),
       itemCount: persons.length,
-      separatorBuilder: (_, i) => Container(height: 1, color: colors.hairline),
-      itemBuilder: (context, index) => _WantedRow(
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => _WantedCard(
         person: persons[index],
         onTap: () => onOpen(persons[index]),
       ),
@@ -230,133 +188,55 @@ class _WantedList extends StatelessWidget {
   }
 }
 
-class _WantedRow extends StatelessWidget {
-  const _WantedRow({required this.person, required this.onTap});
+class _WantedCard extends StatelessWidget {
+  const _WantedCard({required this.person, required this.onTap});
 
   final WantedPerson person;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return InkWell(
+    return NamPersonCard(
+      heroTag: 'wanted:${person.id}',
+      initials: _initialsFor(person),
+      photoUrl: person.photoUrl,
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _Mugshot(person: person),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _CaseChip(caseId: person.id),
-                  const SizedBox(height: 8),
-                  Text(
-                    person.fullName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: scheme.onSurface,
-                          height: 1.15,
-                        ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (person.alias != null && person.alias!.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Text(
-                      'a.k.a. "${person.alias}"',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  if (person.crimeDescription != null &&
-                      person.crimeDescription!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      person.crimeDescription!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                  Text(
-                    'WANTED  ·  ${person.status ?? "ACTIVE"}'.toUpperCase(),
-                    style: DutyTheme.mono(
-                      size: 10,
-                      color: colors.mutedGold,
-                      letterSpacing: 1.0,
-                    ),
-                  ),
-                ],
-              ),
+      details: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          NamCaseChip(caseId: person.id),
+          const SizedBox(height: 10),
+          Text(
+            person.fullName,
+            style: NamStyle.title(size: 16, weight: FontWeight.w700),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          if (person.alias != null && person.alias!.isNotEmpty) ...[
+            const SizedBox(height: 3),
+            Text(
+              'a.k.a. "${person.alias}"',
+              style: NamStyle.body(size: 13),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CaseChip extends StatelessWidget {
-  const _CaseChip({required this.caseId});
-  final String caseId;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        border: Border.all(color: scheme.secondary, width: 1),
-      ),
-      child: Text(
-        'CASE / $caseId',
-        style: DutyTheme.mono(
-          size: 10,
-          weight: FontWeight.w700,
-          color: scheme.secondary,
-          letterSpacing: 1.2,
-        ),
-      ),
-    );
-  }
-}
-
-class _Mugshot extends StatelessWidget {
-  const _Mugshot({required this.person});
-  final WantedPerson person;
-
-  @override
-  Widget build(BuildContext context) {
-    final hairline = Theme.of(context).extension<DutyColors>()!.hairline;
-    final initials = _initialsFor(person);
-    final url = person.photoUrl;
-    final placeholder = MugshotPlaceholder(initials: initials);
-    final image = (url == null || url.isEmpty)
-        ? placeholder
-        : CachedNetworkImage(
-            imageUrl: url,
-            fit: BoxFit.cover,
-            errorWidget: (_, errorUrl, error) => placeholder,
-          );
-    return Container(
-      width: 72,
-      height: 88,
-      decoration: BoxDecoration(border: Border.all(color: hairline)),
-      child: Hero(
-        tag: 'wanted:${person.id}',
-        child: ClipRect(child: image),
+          if (person.crimeDescription != null &&
+              person.crimeDescription!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              person.crimeDescription!,
+              style: NamStyle.body(size: 13),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 8),
+          Text(
+            'WANTED · ${(person.status ?? 'ACTIVE').toUpperCase()}',
+            style: NamStyle.mono(size: 10, letterSpacing: 1.2),
+          ),
+        ],
       ),
     );
   }

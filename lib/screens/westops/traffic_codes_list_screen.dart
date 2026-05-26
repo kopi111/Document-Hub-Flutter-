@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../models/westops/traffic_code.dart';
 import '../../services/westops/traffic_codes_repository.dart';
 import '../../theme/duty_theme.dart';
+import '../../theme/jcf_palette.dart';
 import '../../widgets/breadcrumb_trail.dart';
 import '../../widgets/editorial/shared_axis_route.dart';
 import 'traffic_code_detail_screen.dart';
@@ -335,7 +336,7 @@ class _CodeRow extends StatelessWidget {
                   style: DutyTheme.mono(
                     size: 14,
                     weight: FontWeight.w700,
-                    color: scheme.onSurface,
+                    color: JcfPalette.accent,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -343,7 +344,7 @@ class _CodeRow extends StatelessWidget {
                   '${entry.demeritPoints} PTS',
                   style: DutyTheme.mono(
                     size: 10,
-                    color: colors.mutedGold,
+                    color: entry.demeritPoints == 0 ? JcfPalette.success : colors.mutedGold,
                     letterSpacing: 0.8,
                   ),
                 ),

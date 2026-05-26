@@ -6,6 +6,7 @@ import 'package:flutter_tts/flutter_tts.dart';
 import 'package:http/http.dart' as http;
 import '../models/document.dart';
 import '../widgets/breadcrumb_trail.dart';
+import '../theme/jcf_palette.dart';
 
 class PdfViewerScreen extends StatefulWidget {
   final PolicyDocument document;
@@ -238,7 +239,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const Icon(Icons.error_outline, size: 64, color: JcfPalette.danger),
                   const SizedBox(height: 16),
                   const Text('Failed to load PDF'),
                   const SizedBox(height: 8),
@@ -268,7 +269,7 @@ class _PdfViewerScreenState extends State<PdfViewerScreen> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.description, size: 64, color: Colors.blue),
+                      Icon(Icons.description, size: 64, color: JcfPalette.info),
                       SizedBox(height: 16),
                       Text(
                           'This document format is not supported for preview.'),

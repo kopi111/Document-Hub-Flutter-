@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../theme/jcf_palette.dart';
 import '../../widgets/breadcrumb_trail.dart';
 
 class MapScreen extends StatefulWidget {
@@ -21,7 +22,7 @@ class _MapScreenState extends State<MapScreen> {
       point: LatLng(17.9712, -76.7929),
       width: 40,
       height: 40,
-      child: Icon(Icons.location_pin, color: Colors.red, size: 36),
+      child: Icon(Icons.location_pin, color: JcfPalette.danger, size: 36),
     ),
   ];
 

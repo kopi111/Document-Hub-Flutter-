@@ -46,3 +46,7 @@ app.*.map.json
 
 # Claude Code agent worktrees (local-only scratch space)
 .claude/
+
+# Recolor swarm run artifacts (worker logs are throwaway)
+tools/run-*/
+tools/.last_run

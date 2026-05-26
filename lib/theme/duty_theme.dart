@@ -2,6 +2,8 @@ import 'package:flex_color_scheme/flex_color_scheme.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import 'jcf_palette.dart';
+
 /// Field-manual / editorial theme for the JCF Duty shell.
 ///
 /// Two typefaces of authority + one of data. Roboto Slab anchors display, IBM
@@ -72,18 +74,18 @@ class DutyTheme {
           )
         : FlexThemeData.dark(
             colors: const FlexSchemeColor(
-              primary: powderBlue,
-              primaryContainer: glaucous,
-              secondary: paleSky,
-              secondaryContainer: Color(0xFF1B2F47),
-              tertiary: powderBlue,
-              tertiaryContainer: Color(0xFF1B2F47),
-              appBarColor: inkBlack,
-              error: Color(0xFFEFB8B1),
+              primary: JcfPalette.primary,
+              primaryContainer: JcfPalette.primaryVariant,
+              secondary: JcfPalette.accent,
+              secondaryContainer: JcfPalette.primaryVariant,
+              tertiary: JcfPalette.info,
+              tertiaryContainer: JcfPalette.primaryVariant,
+              appBarColor: JcfPalette.primary,
+              error: JcfPalette.danger,
             ),
-            scaffoldBackground: inkBlack,
+            scaffoldBackground: JcfPalette.background,
             surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
-            blendLevel: 10,
+            blendLevel: 6,
             appBarStyle: FlexAppBarStyle.primary,
             subThemesData: _subThemes,
             visualDensity: VisualDensity.standard,
@@ -91,7 +93,27 @@ class DutyTheme {
             swapLegacyOnMaterial3: true,
           );
 
+    final ColorScheme scheme = isLight
+        ? base.colorScheme
+        : base.colorScheme.copyWith(
+            surface: JcfPalette.surface,
+            onSurface: JcfPalette.textPrimary,
+            onSurfaceVariant: JcfPalette.textSecondary,
+            surfaceContainerLowest: JcfPalette.background,
+            surfaceContainerLow: JcfPalette.surface,
+            surfaceContainer: JcfPalette.surface,
+            surfaceContainerHigh: JcfPalette.surfaceRaised,
+            surfaceContainerHighest: JcfPalette.surfaceRaised,
+            outline: JcfPalette.hairline,
+            outlineVariant: JcfPalette.hairline,
+            onPrimary: JcfPalette.textPrimary,
+            onSecondary: JcfPalette.onAccent,
+            onError: JcfPalette.onDanger,
+          );
+
     return base.copyWith(
+      colorScheme: scheme,
+      scaffoldBackgroundColor: isLight ? null : JcfPalette.background,
       textTheme: _typography(base.textTheme),
       materialTapTargetSize: MaterialTapTargetSize.padded,
       extensions: <ThemeExtension<dynamic>>[
@@ -198,10 +220,10 @@ class DutyColors extends ThemeExtension<DutyColors> {
   );
 
   static const DutyColors dark = DutyColors(
-    alertRed: Color(0xFFEFB8B1),
-    mutedGold: DutyTheme.powderBlue,
-    hairline: Color(0xFF1E2C3C),
-    missingTeal: DutyTheme.paleSky,
+    alertRed: JcfPalette.danger,
+    mutedGold: JcfPalette.accent,
+    hairline: JcfPalette.hairline,
+    missingTeal: JcfPalette.info,
   );
 
   @override

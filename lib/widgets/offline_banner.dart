@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../services/connectivity_service.dart';
+import '../theme/jcf_palette.dart';
 
 class OfflineBanner extends StatelessWidget {
   const OfflineBanner({
@@ -50,16 +51,13 @@ class _OfflineLayout extends StatelessWidget {
 class _OfflineBar extends StatelessWidget {
   const _OfflineBar();
 
-  static const Color _background = Color(0xFFFFE0B2);
-  static const Color _foreground = Color(0xFF8B5A00);
-
   @override
   Widget build(BuildContext context) {
     return Semantics(
       liveRegion: true,
       label: 'You are offline. Showing cached documents only.',
       child: Material(
-        color: _background,
+        color: JcfPalette.warning,
         child: SafeArea(
           bottom: false,
           child: Padding(
@@ -67,12 +65,12 @@ class _OfflineBar extends StatelessWidget {
             child: const Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.cloud_off, size: 16, color: _foreground),
+                Icon(Icons.cloud_off, size: 16, color: JcfPalette.onAccent),
                 SizedBox(width: 8),
                 Text(
                   'Offline — showing cached documents',
                   style: TextStyle(
-                    color: _foreground,
+                    color: JcfPalette.onAccent,
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),

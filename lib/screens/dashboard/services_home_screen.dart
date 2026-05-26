@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../services/news/in_memory_news_repository.dart';
 import '../../services/news/news_repository.dart';
+import '../../theme/jcf_palette.dart';
 import '../about_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../documents/documents_home_screen.dart';
@@ -12,25 +13,6 @@ import '../westops/missing_list_screen.dart';
 import '../westops/stolen_vehicles_list_screen.dart';
 import '../westops/traffic_codes_list_screen.dart';
 import '../westops/wanted_list_screen.dart';
-
-/// Palette for the services-style landing. Kept local so the global
-/// field-manual theme is untouched.
-class _HomePalette {
-  const _HomePalette._();
-
-  static const Color inkBlack = Color(0xFF04080F);
-  static const Color glaucous = Color(0xFF507DBC);
-  static const Color powderBlue = Color(0xFFA1C6EA);
-  static const Color alabasterGrey = Color(0xFFDAE3E5);
-
-  static const Color headerBlue = glaucous;
-  static const Color tileIconBackground = powderBlue;
-  static const Color tileIcon = glaucous;
-  static const Color navBar = inkBlack;
-  static const Color callButton = glaucous;
-  static const Color navSelected = powderBlue;
-  static const Color scaffold = alabasterGrey;
-}
 
 const String _emergencyNumber = '119';
 
@@ -65,7 +47,7 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.call, color: _HomePalette.callButton),
+        icon: const Icon(Icons.call, color: JcfPalette.danger),
         title: const Text('Emergency'),
         content: const Text('Place a call to police emergency ($_emergencyNumber)?'),
         actions: [
@@ -133,7 +115,7 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _HomePalette.scaffold,
+      backgroundColor: JcfPalette.background,
       appBar: _buildAppBar(),
       body: SingleChildScrollView(
         child: Padding(
@@ -160,8 +142,8 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
 
   AppBar _buildAppBar() {
     return AppBar(
-      backgroundColor: _HomePalette.headerBlue,
-      foregroundColor: Colors.white,
+      backgroundColor: JcfPalette.primary,
+      foregroundColor: JcfPalette.textPrimary,
       centerTitle: true,
       elevation: 0,
       leading: IconButton(
@@ -192,11 +174,7 @@ class _WelcomeCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [_HomePalette.glaucous, _HomePalette.inkBlack],
-        ),
+        gradient: JcfPalette.heroGradient,
         borderRadius: BorderRadius.circular(16),
       ),
       child: const Column(
@@ -205,7 +183,7 @@ class _WelcomeCard extends StatelessWidget {
           Text(
             'Welcome, Officer!',
             style: TextStyle(
-              color: Colors.white,
+              color: JcfPalette.textPrimary,
               fontSize: 22,
               fontWeight: FontWeight.w700,
             ),
@@ -213,7 +191,7 @@ class _WelcomeCard extends StatelessWidget {
           SizedBox(height: 6),
           Text(
             'JCF · Western Operations',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
+            style: TextStyle(color: JcfPalette.textSecondary, fontSize: 14),
           ),
         ],
       ),
@@ -263,7 +241,7 @@ class _ServiceTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: Colors.white,
+      color: JcfPalette.surface,
       borderRadius: BorderRadius.circular(16),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
@@ -277,16 +255,17 @@ class _ServiceTile extends StatelessWidget {
                 width: 42,
                 height: 42,
                 decoration: const BoxDecoration(
-                  color: _HomePalette.tileIconBackground,
+                  color: JcfPalette.accent,
                   shape: BoxShape.circle,
                 ),
-                child: Icon(data.icon, color: _HomePalette.tileIcon, size: 21),
+                child: Icon(data.icon, color: JcfPalette.onAccent, size: 21),
               ),
               const SizedBox(height: 8),
               Text(
                 data.label,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
+                  color: JcfPalette.textPrimary,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                   height: 1.1,
@@ -309,8 +288,8 @@ class _CallButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return FloatingActionButton(
       onPressed: onPressed,
-      backgroundColor: _HomePalette.callButton,
-      foregroundColor: Colors.white,
+      backgroundColor: JcfPalette.danger,
+      foregroundColor: JcfPalette.onDanger,
       shape: const CircleBorder(),
       tooltip: 'Emergency call',
       child: const Icon(Icons.call),
@@ -332,7 +311,7 @@ class _HomeBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
-      color: _HomePalette.navBar,
+      color: JcfPalette.primary,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
       child: SizedBox(
@@ -384,7 +363,7 @@ class _BottomBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? _HomePalette.navSelected : Colors.white;
+    final color = selected ? JcfPalette.accent : JcfPalette.textSecondary;
     return InkWell(
       onTap: onTap,
       child: Column(
