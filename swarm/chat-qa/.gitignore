@@ -1,0 +1,3 @@
+# Raw per-run worker output (regenerable via run_chat_qa.py); keep REPORT_*.md.
+findings/
+findings_v*/

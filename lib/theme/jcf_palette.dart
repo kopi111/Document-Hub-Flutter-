@@ -13,32 +13,32 @@ class JcfPalette {
   static const Color primary = Color(0xFF0A1C3A); // JCF Dark Blue
   static const Color primaryVariant = Color(0xFF1E3A6F); // JCF Blue
   static const Color secondary = Color(0xFF3A4A5C); // Steel Grey
-  static const Color accent = Color(0xFFF5A623); // Amber Alert
-  static const Color background = Color(0xFF121826); // Deep Slate
-  static const Color surface = Color(0xFF1E293B); // Card Grey
-  static const Color surfaceRaised = Color(0xFF243043); // raised cards/sheets
+  static const Color accent = Color(0xFF2D6CDF); // JCF Blue (brand highlight)
+  static const Color background = Color(0xFFEDF1F6); // Light Grey (page)
+  static const Color surface = Color(0xFFFFFFFF); // White (cards/sheets)
+  static const Color surfaceRaised = Color(0xFFF4F7FB); // raised cards/sheets
 
   // Semantic status.
-  static const Color success = Color(0xFF10B981); // Operational Green
-  static const Color warning = Color(0xFFF59E0B); // Urgent Amber
-  static const Color danger = Color(0xFFDC2626); // Critical Red
-  static const Color info = Color(0xFF3B82F6); // Patrol Blue
+  static const Color success = Color(0xFF12875E); // Operational Green
+  static const Color warning = Color(0xFFB7791F); // Urgent Amber
+  static const Color danger = Color(0xFFD13438); // Critical Red
+  static const Color info = Color(0xFF2D6CDF); // Patrol Blue
 
   // Text.
-  static const Color textPrimary = Color(0xFFF1F5F9); // high emphasis
-  static const Color textSecondary = Color(0xFF94A3B8); // low emphasis
-  static const Color textDisabled = Color(0xFF475569);
-  static const Color onAccent = Color(0xFF121826); // dark text on amber
+  static const Color textPrimary = Color(0xFF15233B); // high emphasis (dark)
+  static const Color textSecondary = Color(0xFF5B6B80); // low emphasis (grey)
+  static const Color textDisabled = Color(0xFFA3AEBC);
+  static const Color onAccent = Color(0xFFFFFFFF); // white text on JCF blue
   static const Color onDanger = Color(0xFFFFFFFF);
 
   // Icons.
-  static const Color iconDefault = Color(0xFFCBD5E1);
+  static const Color iconDefault = Color(0xFF475569);
   static const Color iconActive = accent;
   static const Color iconCritical = danger;
 
   // Structure.
-  static const Color hairline = Color(0xFF2A3649); // dividers/borders
-  static const Color dangerBorder = Color(0xFFF87171);
+  static const Color hairline = Color(0xFFE2E8F0); // dividers/borders
+  static const Color dangerBorder = Color(0xFFF1A9AB);
 
   /// Hero-card gradient for high-impact headers (e.g. wanted person card).
   static const LinearGradient heroGradient = LinearGradient(

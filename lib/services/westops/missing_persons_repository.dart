@@ -1,4 +1,5 @@
 import '../../models/westops/missing_person.dart';
+import '../../models/westops/sighting.dart';
 
 // TODO: Add `HttpMissingPersonsRepository` once the backend ships
 // `/api/v1/westops/missing-persons`. It should reuse the existing
@@ -6,6 +7,12 @@ import '../../models/westops/missing_person.dart';
 // own transport.
 abstract class MissingPersonsRepository {
   Future<List<MissingPerson>> listAll();
+
+  /// Files a new missing-person report and returns the stored record.
+  Future<MissingPerson> create(MissingPerson person);
+
+  /// Permanently removes the missing-person record with the given [id].
+  Future<void> delete(String id);
 
   /// Records that a missing person has been located and flips their status to
   /// [MissingPerson.statusFound]. Returns the updated record.
@@ -16,6 +23,10 @@ abstract class MissingPersonsRepository {
     required String foundBy,
     String? foundNotes,
   });
+
+  /// Appends a sighting to the person's last-seen log. Returns the updated
+  /// record.
+  Future<MissingPerson> addSighting(String id, Sighting sighting);
 }
 
 class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
@@ -23,6 +34,17 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
 
   @override
   Future<List<MissingPerson>> listAll() async => _seedRecords;
+
+  @override
+  Future<MissingPerson> create(MissingPerson person) async {
+    _seedRecords.insert(0, person);
+    return person;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _seedRecords.removeWhere((record) => record.id == id);
+  }
 
   @override
   Future<MissingPerson> markFound({
@@ -47,16 +69,38 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
     return updated;
   }
 
+  @override
+  Future<MissingPerson> addSighting(String id, Sighting sighting) async {
+    final index = _seedRecords.indexWhere((record) => record.id == id);
+    if (index == -1) {
+      throw StateError('No missing person with id $id');
+    }
+    final record = _seedRecords[index];
+    final updated = record.copyWith(
+      sightings: [...record.sightings, sighting],
+    );
+    _seedRecords[index] = updated;
+    return updated;
+  }
+
   static final List<MissingPerson> _seedRecords = [
     MissingPerson(
       id: 'MP-2001',
       firstName: 'Shanique',
       lastName: 'Bailey',
       gender: 'Female',
+      age: 15,
       dateOfBirth: DateTime(2010, 5, 12),
       reportedDate: DateTime(2026, 4, 28),
+      occupation: 'Student — Trench Town High',
+      address: '3 Collie Smith Drive, Kingston 12',
       lastSeenLocation: 'Trench Town, Kingston 12',
       description: 'Wearing a navy school uniform; last seen walking from school.',
+      height: "5'4\"",
+      weight: '52 kg',
+      complexion: 'Dark',
+      tattoos: 'None',
+      physicalAbilities: 'No known impairments',
       contactPerson: 'Mrs Bailey (mother)',
       contactPhoneNumber: '876-555-0301',
       photoUrl: 'https://ui-avatars.com/api/?name=Shanique+Bailey&size=256&background=random&color=fff&bold=true',

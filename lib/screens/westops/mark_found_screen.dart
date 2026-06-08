@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/westops/missing_person.dart';
+import '../../theme/nam_style.dart';
 
 /// Details an officer records when a missing person is located.
 class MarkFoundResult {
@@ -80,6 +81,13 @@ class _MarkFoundScreenState extends State<MarkFoundScreen> {
 
   @override
   Widget build(BuildContext context) {
+    return Theme(
+      data: NamStyle.theme(),
+      child: _buildForm(context),
+    );
+  }
+
+  Widget _buildForm(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('Mark Found · ${widget.person.fullName}')),
       body: Form(

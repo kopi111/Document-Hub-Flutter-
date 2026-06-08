@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../screens/notifications/notifications_screen.dart';
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
+import '../services/notifications/app_notifications_store.dart';
 import '../services/notifications/notifications_service.dart';
 
 class NotificationsBell extends StatefulWidget {
@@ -17,20 +18,30 @@ class NotificationsBell extends StatefulWidget {
 class _NotificationsBellState extends State<NotificationsBell> {
   late final NewsRepository _newsRepository =
       widget.newsRepository ?? InMemoryNewsRepository();
-  late final NotificationsService _service =
-      NewsBackedNotificationsService(newsRepository: _newsRepository);
   int _count = 0;
 
   @override
   void initState() {
     super.initState();
-    _refreshBadge();
+    AppNotificationsStore.instance.addListener(_onStoreChanged);
+    _seedAndRefresh();
   }
 
-  Future<void> _refreshBadge() async {
-    final count = await _service.unreadCount();
+  @override
+  void dispose() {
+    AppNotificationsStore.instance.removeListener(_onStoreChanged);
+    super.dispose();
+  }
+
+  Future<void> _seedAndRefresh() async {
+    final service = NewsBackedNotificationsService(newsRepository: _newsRepository);
+    await AppNotificationsStore.instance.ensureSeeded(service);
+    _onStoreChanged();
+  }
+
+  void _onStoreChanged() {
     if (!mounted) return;
-    setState(() => _count = count);
+    setState(() => _count = AppNotificationsStore.instance.count);
   }
 
   Future<void> _open() async {
@@ -39,7 +50,7 @@ class _NotificationsBellState extends State<NotificationsBell> {
         builder: (_) => NotificationsScreen(newsRepository: _newsRepository),
       ),
     );
-    await _refreshBadge();
+    _onStoreChanged();
   }
 
   @override

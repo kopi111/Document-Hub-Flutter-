@@ -1,12 +1,73 @@
+import 'dart:typed_data';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/westops/stolen_vehicle.dart';
 import '../../services/westops/stolen_vehicles_repository.dart';
-import '../../theme/duty_theme.dart';
-import '../../widgets/breadcrumb_trail.dart';
+import '../../theme/hub_style.dart';
 import '../../widgets/editorial/shared_axis_route.dart';
+import '../../widgets/hub/hub_category_card.dart';
+import '../../widgets/hub/hub_filter_pill.dart';
+import '../../widgets/hub/hub_gradient_header.dart';
+import '../../widgets/hub/hub_section_heading.dart';
+import '../../widgets/hub/hub_stat_banner.dart';
+import '../../widgets/notifications_bell.dart';
+import 'add_stolen_vehicle_screen.dart';
 import 'stolen_vehicle_detail_screen.dart';
+
+/// A vehicle-type grouping derived from keywords in the make/model, since the
+/// record has no explicit type column.
+class _VehicleCategory {
+  const _VehicleCategory({
+    required this.label,
+    required this.icon,
+    required this.tint,
+    required this.keywords,
+  });
+
+  final String label;
+  final IconData icon;
+  final HubTint tint;
+  final List<String> keywords;
+
+  bool matches(StolenVehicle vehicle) {
+    final text = '${vehicle.make} ${vehicle.model}'.toLowerCase();
+    return keywords.any(text.contains);
+  }
+}
+
+const List<_VehicleCategory> _categories = [
+  _VehicleCategory(
+    label: 'Motorcycles',
+    icon: Icons.two_wheeler,
+    tint: HubTint.purple,
+    keywords: ['bike', 'motorcycle', 'cbr', 'ninja', 'harley', 'yamaha', 'ktm'],
+  ),
+  _VehicleCategory(
+    label: 'Trucks & Pickups',
+    icon: Icons.local_shipping,
+    tint: HubTint.orange,
+    keywords: ['hilux', 'truck', 'pickup', 'tacoma', 'frontier', 'ranger',
+        'navara', 'd-max', 'dmax', 'tundra'],
+  ),
+  _VehicleCategory(
+    label: 'SUVs',
+    icon: Icons.airport_shuttle,
+    tint: HubTint.teal,
+    keywords: ['cr-v', 'crv', 'rav4', 'pajero', 'prado', 'fortuner',
+        'x-trail', 'xtrail', 'rush', 'terios', 'escape', 'cx-5', 'cx5'],
+  ),
+  _VehicleCategory(
+    label: 'Cars',
+    icon: Icons.directions_car,
+    tint: HubTint.blue,
+    keywords: ['corolla', 'tiida', 'swift', 'demio', 'lancer', 'civic',
+        'sentra', 'axio', 'fielder', 'note', 'march', 'vitz', 'yaris'],
+  ),
+];
+
+enum _Sort { newest, oldest, makeAlpha }
 
 class StolenVehiclesListScreen extends StatefulWidget {
   const StolenVehiclesListScreen({super.key, this.repository});
@@ -24,9 +85,12 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
   final TextEditingController _searchController = TextEditingController();
 
   List<StolenVehicle> _all = [];
-  List<StolenVehicle> _visible = [];
   bool _loading = true;
   String? _error;
+
+  String _query = '';
+  _VehicleCategory? _category;
+  _Sort _sort = _Sort.newest;
 
   @override
   void initState() {
@@ -40,7 +104,6 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
       if (!mounted) return;
       setState(() {
         _all = records;
-        _visible = records;
         _loading = false;
       });
     } catch (error) {
@@ -52,36 +115,90 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
     }
   }
 
-  void _onSearchChanged(String query) {
+  List<StolenVehicle> get _visible {
+    final lower = _query.toLowerCase();
+    final filtered = _all.where((vehicle) {
+      if (lower.isNotEmpty && !_matchesQuery(vehicle, lower)) return false;
+      if (_category != null && !_category!.matches(vehicle)) return false;
+      return true;
+    }).toList();
+    _sortInPlace(filtered);
+    return filtered;
+  }
+
+  bool _matchesQuery(StolenVehicle vehicle, String lower) {
+    if (vehicle.make.toLowerCase().contains(lower)) return true;
+    if (vehicle.model.toLowerCase().contains(lower)) return true;
+    final plate = vehicle.licensePlate;
+    if (plate != null && plate.toLowerCase().contains(lower)) return true;
+    final color = vehicle.color;
+    if (color != null && color.toLowerCase().contains(lower)) return true;
+    return false;
+  }
+
+  void _sortInPlace(List<StolenVehicle> vehicles) {
+    switch (_sort) {
+      case _Sort.newest:
+        vehicles.sort((a, b) => b.dateStolen.compareTo(a.dateStolen));
+      case _Sort.oldest:
+        vehicles.sort((a, b) => a.dateStolen.compareTo(b.dateStolen));
+      case _Sort.makeAlpha:
+        vehicles.sort((a, b) => a.displayName.compareTo(b.displayName));
+    }
+  }
+
+  List<StolenVehicle> get _recentlyAdded {
+    final sorted = List<StolenVehicle>.from(_all)
+      ..sort((a, b) => b.dateStolen.compareTo(a.dateStolen));
+    return sorted.take(6).toList();
+  }
+
+  bool get _hasFilters => _query.isNotEmpty || _category != null;
+
+  void _resetFilters() {
+    _searchController.clear();
     setState(() {
-      _visible = _filtered(query);
+      _query = '';
+      _category = null;
     });
   }
 
-  List<StolenVehicle> _filtered(String query) {
-    if (query.isEmpty) return _all;
-    final lower = query.toLowerCase();
-    return _all.where((vehicle) {
-      if (vehicle.make.toLowerCase().contains(lower)) return true;
-      if (vehicle.model.toLowerCase().contains(lower)) return true;
-      final plate = vehicle.licensePlate;
-      if (plate != null && plate.toLowerCase().contains(lower)) return true;
-      final color = vehicle.color;
-      if (color != null && color.toLowerCase().contains(lower)) return true;
-      return false;
-    }).toList();
-  }
+  void _toggleCategory(_VehicleCategory value) =>
+      setState(() => _category = _category == value ? null : value);
 
-  void _clearSearch() {
-    _searchController.clear();
-    _onSearchChanged('');
-  }
-
-  void _openDetail(StolenVehicle vehicle) {
-    Navigator.push(
+  Future<void> _openDetail(StolenVehicle vehicle) async {
+    await Navigator.push(
       context,
-      sharedAxis(StolenVehicleDetailScreen(vehicle: vehicle)),
+      sharedAxis(
+        StolenVehicleDetailScreen(vehicle: vehicle, repository: _repository),
+      ),
     );
+    await _loadRecords();
+  }
+
+  Future<void> _openAdd() async {
+    final created = await Navigator.push<bool>(
+      context,
+      sharedAxis(AddStolenVehicleScreen(repository: _repository)),
+    );
+    if (created == true) await _loadRecords();
+  }
+
+  void _showTipFlow() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Report a tip: call 119 or Crime Stop 311')),
+    );
+  }
+
+  Future<void> _openSortSheet() async {
+    final chosen = await showModalBottomSheet<_Sort>(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) => _SortSheet(current: _sort),
+    );
+    if (chosen != null) setState(() => _sort = chosen);
   }
 
   @override
@@ -93,42 +210,301 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Stolen Vehicles'),
-        bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
+      backgroundColor: HubStyle.pageBackground,
+      body: Column(
+        children: [
+          HubGradientHeader(
+            title: 'Stolen Vehicles',
+            showBack: true,
+            actions: const [
+              IconTheme(
+                data: IconThemeData(color: HubStyle.onGradient),
+                child: NotificationsBell(),
+              ),
+            ],
+          ),
+          Expanded(child: _buildBody()),
+        ],
       ),
-      body: _buildBody(),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openAdd,
+        backgroundColor: const Color(0xFF2D6CDF),
+        foregroundColor: HubStyle.onGradient,
+        icon: const Icon(Icons.add),
+        label: const Text('Report'),
+      ),
     );
-  }
-
-  List<BreadcrumbSegment> _breadcrumbSegments(BuildContext context) {
-    return [
-      BreadcrumbSegment(
-        label: 'Home',
-        onTap: Navigator.canPop(context)
-            ? () => Navigator.popUntil(context, (route) => route.isFirst)
-            : null,
-      ),
-      const BreadcrumbSegment(label: 'Western Operations'),
-      const BreadcrumbSegment(label: 'Stolen Vehicles'),
-    ];
   }
 
   Widget _buildBody() {
     if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) return Center(child: Text(_error!));
-    return Column(
-      children: [
-        _SearchField(
-          controller: _searchController,
-          onChanged: _onSearchChanged,
-          onClear: _clearSearch,
+
+    final visible = _visible;
+    final recent = _recentlyAdded;
+    final newestId = recent.isEmpty ? null : recent.first.id;
+
+    return RefreshIndicator(
+      onRefresh: _loadRecords,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 96),
+        children: [
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _SearchRow(
+              controller: _searchController,
+              onChanged: (value) => setState(() => _query = value),
+              onSort: _openSortSheet,
+            ),
+          ),
+          const SizedBox(height: 14),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: HubStatBanner(
+              icon: Icons.directions_car,
+              count: _all.length.toString(),
+              label: 'Stolen Vehicles',
+              caption: 'Across all jurisdictions',
+              actionLabel: 'View Alerts',
+              onAction: _resetFilters,
+            ),
+          ),
+          const SizedBox(height: 18),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: HubSectionHeading(title: 'Quick Filters'),
+          ),
+          const SizedBox(height: 10),
+          _buildCategoryPills(),
+          if (recent.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: HubSectionHeading(title: 'Recently Added'),
+            ),
+            const SizedBox(height: 10),
+            _buildRecentRow(recent, newestId),
+          ],
+          const SizedBox(height: 20),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: HubSectionHeading(title: 'Browse by Category'),
+          ),
+          const SizedBox(height: 10),
+          _buildCategoryGrid(),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: _TipBanner(onReport: _showTipFlow),
+          ),
+          const SizedBox(height: 20),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: HubSectionHeading(
+              title: _hasFilters ? 'Matching Vehicles' : 'All Stolen Vehicles',
+              actionLabel: _hasFilters ? 'Clear' : null,
+              onAction: _hasFilters ? _resetFilters : null,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Text(
+              '${visible.length} of ${_all.length} vehicles',
+              style: const TextStyle(
+                color: HubStyle.textSecondary,
+                fontSize: 12.5,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (visible.isEmpty)
+            const Padding(
+              padding: EdgeInsets.fromLTRB(16, 30, 16, 30),
+              child: Center(
+                child: Text(
+                  'No matching vehicles',
+                  style: TextStyle(color: HubStyle.textSecondary),
+                ),
+              ),
+            )
+          else
+            ...visible.map(
+              (vehicle) => Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+                child: _VehicleCard(
+                  vehicle: vehicle,
+                  onTap: () => _openDetail(vehicle),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryPills() {
+    final pills = <Widget>[
+      HubFilterPill(
+        label: 'All',
+        icon: Icons.dashboard_outlined,
+        selected: _category == null,
+        onTap: () => setState(() => _category = null),
+      ),
+      for (final category in _categories)
+        HubFilterPill(
+          label: category.label,
+          icon: category.icon,
+          accent: category.tint.foreground,
+          selected: _category == category,
+          onTap: () => _toggleCategory(category),
         ),
-        _ResultsHeader(count: _visible.length),
+    ];
+    return HubFilterPillRow(children: pills);
+  }
+
+  Widget _buildRecentRow(List<StolenVehicle> recent, String? newestId) {
+    return SizedBox(
+      height: 196,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: recent.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (_, index) {
+          final vehicle = recent[index];
+          return _RecentCard(
+            vehicle: vehicle,
+            isNew: vehicle.id == newestId,
+            onTap: () => _openDetail(vehicle),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCategoryGrid() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 2.4,
+        children: [
+          for (final category in _categories)
+            HubCategoryCard(
+              icon: category.icon,
+              title: category.label,
+              count: '${_all.where(category.matches).length} vehicles',
+              tint: category.tint,
+              selected: _category == category,
+              onTap: () => _toggleCategory(category),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Resolves the type icon for a vehicle from its category keywords, falling
+/// back to a generic car when no category matches.
+IconData _iconFor(StolenVehicle vehicle) {
+  for (final category in _categories) {
+    if (category.matches(vehicle)) return category.icon;
+  }
+  return Icons.directions_car;
+}
+
+HubTint _tintFor(StolenVehicle vehicle) {
+  for (final category in _categories) {
+    if (category.matches(vehicle)) return category.tint;
+  }
+  return HubTint.blue;
+}
+
+String _formatDate(DateTime date) {
+  final year = date.year.toString().padLeft(4, '0');
+  final month = date.month.toString().padLeft(2, '0');
+  final day = date.day.toString().padLeft(2, '0');
+  return '$year-$month-$day';
+}
+
+String _stolenAgo(DateTime date) {
+  final days = DateTime.now().difference(date).inDays;
+  if (days <= 0) return 'Stolen today';
+  if (days == 1) return 'Stolen 1 day ago';
+  if (days < 30) return 'Stolen $days days ago';
+  final months = (days / 30).floor();
+  if (months == 1) return 'Stolen 1 month ago';
+  return 'Stolen $months months ago';
+}
+
+class _SearchRow extends StatelessWidget {
+  const _SearchRow({
+    required this.controller,
+    required this.onChanged,
+    required this.onSort,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onSort;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
         Expanded(
-          child: RefreshIndicator(
-            onRefresh: _loadRecords,
-            child: _VehicleList(vehicles: _visible, onOpen: _openDetail),
+          child: Container(
+            decoration: BoxDecoration(
+              color: HubStyle.cardSurface,
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: HubStyle.cardShadow,
+            ),
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              decoration: const InputDecoration(
+                hintText: 'Search stolen vehicles...',
+                border: InputBorder.none,
+                prefixIcon: Icon(Icons.search, color: HubStyle.textSecondary),
+                contentPadding: EdgeInsets.symmetric(vertical: 14),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Material(
+          color: HubStyle.cardSurface,
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: onSort,
+            child: Container(
+              height: 50,
+              padding: const EdgeInsets.symmetric(horizontal: 14),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: HubStyle.cardShadow,
+              ),
+              child: const Row(
+                children: [
+                  Icon(Icons.tune, size: 18, color: HubStyle.textSecondary),
+                  SizedBox(width: 6),
+                  Text(
+                    'Sort',
+                    style: TextStyle(
+                      color: HubStyle.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -136,229 +512,417 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
   }
 }
 
-class _SearchField extends StatelessWidget {
-  const _SearchField({
-    required this.controller,
-    required this.onChanged,
-    required this.onClear,
-  });
+class _SortSheet extends StatelessWidget {
+  const _SortSheet({required this.current});
 
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
+  final _Sort current;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-      child: TextField(
-        controller: controller,
-        onChanged: onChanged,
-        style: DutyTheme.mono(size: 13),
-        decoration: InputDecoration(
-          hintText: 'Search by make, model, plate or colour',
-          hintStyle: DutyTheme.mono(
-            size: 12,
-            color: colors.mutedGold,
-            letterSpacing: 0.4,
+    const options = [
+      (_Sort.newest, 'Newest first', Icons.schedule),
+      (_Sort.oldest, 'Oldest first', Icons.history),
+      (_Sort.makeAlpha, 'Make & model (A–Z)', Icons.sort_by_alpha),
+    ];
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: const Color(0xFFCBD5E1),
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-          prefixIcon: Icon(Icons.search, size: 18, color: colors.mutedGold),
-          suffixIcon: controller.text.isEmpty
-              ? null
-              : IconButton(
-                  icon: const Icon(Icons.clear, size: 18),
-                  tooltip: 'Clear search',
-                  onPressed: onClear,
+          const SizedBox(height: 8),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 8, 20, 4),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Sort vehicles',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: HubStyle.textPrimary,
                 ),
+              ),
+            ),
+          ),
+          for (final (sort, label, icon) in options)
+            ListTile(
+              leading: Icon(icon, color: HubStyle.textSecondary),
+              title: Text(label),
+              trailing: current == sort
+                  ? const Icon(Icons.check, color: Color(0xFF2D6CDF))
+                  : null,
+              onTap: () => Navigator.of(context).pop(sort),
+            ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+/// A small vehicle thumbnail: network photo, locally captured bytes, or a
+/// tinted type icon when neither is present.
+class _VehicleThumbnail extends StatelessWidget {
+  const _VehicleThumbnail({required this.vehicle, required this.size});
+
+  final StolenVehicle vehicle;
+  final double size;
+
+  static const double _radius = 12;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = _tintFor(vehicle);
+    final fallback = Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: tint.background,
+        borderRadius: BorderRadius.circular(_radius),
+      ),
+      child: Icon(_iconFor(vehicle), color: tint.foreground, size: size * 0.42),
+    );
+
+    final image = _imageProvider(vehicle.photoBytes, vehicle.photoUrl);
+    if (image == null) return fallback;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(_radius),
+      child: SizedBox(width: size, height: size, child: image),
+    );
+  }
+
+  Widget? _imageProvider(Uint8List? bytes, String? url) {
+    if (bytes != null && bytes.isNotEmpty) {
+      return Image.memory(bytes, fit: BoxFit.cover);
+    }
+    if (url != null && url.isNotEmpty) {
+      return CachedNetworkImage(
+        imageUrl: url,
+        fit: BoxFit.cover,
+        errorWidget: (_, _, _) => Icon(
+          _iconFor(vehicle),
+          color: _tintFor(vehicle).foreground,
+          size: size * 0.42,
+        ),
+      );
+    }
+    return null;
+  }
+}
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final tint = status.toLowerCase().contains('recover')
+        ? HubTint.green
+        : HubTint.red;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: tint.background,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        status.toUpperCase(),
+        style: TextStyle(
+          color: tint.foreground,
+          fontSize: 10.5,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.4,
         ),
       ),
     );
   }
 }
 
-class _ResultsHeader extends StatelessWidget {
-  const _ResultsHeader({required this.count});
-  final int count;
+class _RecentCard extends StatelessWidget {
+  const _RecentCard({
+    required this.vehicle,
+    required this.isNew,
+    required this.onTap,
+  });
+
+  final StolenVehicle vehicle;
+  final bool isNew;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Row(
-        children: [
-          Container(width: 18, height: 1, color: colors.mutedGold),
-          const SizedBox(width: 10),
-          Text(
-            '${count.toString().padLeft(3, '0')}  STOLEN VEHICLES',
-            style: Theme.of(context).textTheme.labelLarge,
+    final plate = vehicle.licensePlate;
+    final location = vehicle.lastKnownLocation;
+    return SizedBox(
+      width: 180,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: HubStyle.cardSurface,
+          borderRadius: BorderRadius.circular(HubStyle.cardRadius),
+          boxShadow: HubStyle.cardShadow,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(HubStyle.cardRadius),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Stack(
+                    children: [
+                      _VehicleThumbnail(vehicle: vehicle, size: 156),
+                      if (isNew)
+                        Positioned(
+                          top: 6,
+                          left: 6,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE0414C),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'NEW',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.6,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    vehicle.displayName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: HubStyle.textPrimary,
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _plateLine(plate, location),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: HubStyle.textSecondary,
+                      fontSize: 11.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _stolenAgo(vehicle.dateStolen),
+                    style: const TextStyle(
+                      color: Color(0xFFE0414C),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }
-}
 
-class _VehicleList extends StatelessWidget {
-  const _VehicleList({required this.vehicles, required this.onOpen});
-
-  final List<StolenVehicle> vehicles;
-  final void Function(StolenVehicle) onOpen;
-
-  @override
-  Widget build(BuildContext context) {
-    if (vehicles.isEmpty) {
-      return ListView(
-        children: const [
-          SizedBox(height: 120),
-          Center(child: Text('No stolen vehicles found')),
-        ],
-      );
+  String _plateLine(String? plate, String? location) {
+    if (plate != null && plate.isNotEmpty) {
+      if (location != null && location.isNotEmpty) return '$plate · $location';
+      return plate;
     }
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: vehicles.length,
-      separatorBuilder: (_, _) => Container(height: 1, color: colors.hairline),
-      itemBuilder: (context, index) {
-        return _VehicleRow(
-          vehicle: vehicles[index],
-          onTap: () => onOpen(vehicles[index]),
-        );
-      },
-    );
+    if (location != null && location.isNotEmpty) return location;
+    return 'Plate unknown';
   }
 }
 
-class _VehicleRow extends StatelessWidget {
-  const _VehicleRow({required this.vehicle, required this.onTap});
+class _VehicleCard extends StatelessWidget {
+  const _VehicleCard({required this.vehicle, required this.onTap});
 
   final StolenVehicle vehicle;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return InkWell(
-      onTap: onTap,
+    final plate = vehicle.licensePlate;
+    final status = vehicle.status;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: HubStyle.cardSurface,
+        borderRadius: BorderRadius.circular(HubStyle.cardRadius),
+        boxShadow: HubStyle.cardShadow,
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(HubStyle.cardRadius),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _VehicleThumbnail(vehicle: vehicle, size: 60),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        vehicle.displayName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: HubStyle.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          if (status != null && status.isNotEmpty) ...[
+                            _StatusChip(status: status),
+                            const SizedBox(width: 8),
+                          ],
+                          if (plate != null && plate.isNotEmpty)
+                            Flexible(
+                              child: Text(
+                                plate.toUpperCase(),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: HubStyle.textPrimary,
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 1.2,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Stolen · ${_formatDate(vehicle.dateStolen)}',
+                        style: const TextStyle(
+                          color: HubStyle.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: HubStyle.textSecondary,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TipBanner extends StatelessWidget {
+  const _TipBanner({required this.onReport});
+
+  final VoidCallback onReport;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: HubStyle.cardSurface,
+        borderRadius: BorderRadius.circular(HubStyle.heroRadius),
+        boxShadow: HubStyle.cardShadow,
+      ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 14),
+        padding: const EdgeInsets.all(16),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Thumbnail(photoUrl: vehicle.photoUrl),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF0E1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.visibility_outlined,
+                color: Color(0xFFEF8A23),
+                size: 24,
+              ),
+            ),
             const SizedBox(width: 14),
-            Expanded(
+            const Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (vehicle.licensePlate != null)
-                    _PlateChip(plate: vehicle.licensePlate!),
-                  if (vehicle.licensePlate != null) const SizedBox(height: 8),
                   Text(
-                    vehicle.displayName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: scheme.onSurface,
-                          height: 1.15,
-                        ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (vehicle.color != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      vehicle.color!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: scheme.onSurfaceVariant,
-                          ),
+                    'See Something?',
+                    style: TextStyle(
+                      color: HubStyle.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
                     ),
-                  ],
-                  const SizedBox(height: 6),
+                  ),
+                  SizedBox(height: 2),
                   Text(
-                    'STOLEN  ·  ${_formatDate(vehicle.dateStolen)}',
-                    style: DutyTheme.mono(
-                      size: 10,
-                      color: colors.mutedGold,
-                      letterSpacing: 1.0,
+                    'Help recover stolen vehicles in your area.',
+                    style: TextStyle(
+                      color: HubStyle.textSecondary,
+                      fontSize: 12.5,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, size: 18, color: scheme.onSurfaceVariant),
+            const SizedBox(width: 10),
+            Material(
+              color: const Color(0xFF2D6CDF),
+              borderRadius: BorderRadius.circular(22),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(22),
+                onTap: onReport,
+                child: const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  child: Text(
+                    'Report a Tip',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
-      ),
-    );
-  }
-
-  String _formatDate(DateTime date) {
-    final y = date.year.toString().padLeft(4, '0');
-    final m = date.month.toString().padLeft(2, '0');
-    final d = date.day.toString().padLeft(2, '0');
-    return '$y-$m-$d';
-  }
-}
-
-class _PlateChip extends StatelessWidget {
-  const _PlateChip({required this.plate});
-  final String plate;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.hairline),
-        color: scheme.surface,
-      ),
-      child: Text(
-        plate.toUpperCase(),
-        style: DutyTheme.mono(
-          size: 12,
-          weight: FontWeight.w700,
-          color: scheme.onSurface,
-          letterSpacing: 1.6,
-        ),
-      ),
-    );
-  }
-}
-
-class _Thumbnail extends StatelessWidget {
-  const _Thumbnail({this.photoUrl});
-  final String? photoUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).extension<DutyColors>()!;
-    final scheme = Theme.of(context).colorScheme;
-    final url = photoUrl;
-    final placeholder = Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.hairline),
-        color: scheme.surfaceContainerHighest,
-      ),
-      child: Icon(
-        Icons.directions_car_outlined,
-        size: 28,
-        color: colors.mutedGold,
-      ),
-    );
-    if (url == null || url.isEmpty) return placeholder;
-    return SizedBox(
-      width: 64,
-      height: 64,
-      child: CachedNetworkImage(
-        imageUrl: url,
-        fit: BoxFit.cover,
-        errorWidget: (_, url, error) => placeholder,
       ),
     );
   }

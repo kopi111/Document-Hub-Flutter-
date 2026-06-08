@@ -1,7 +1,7 @@
 import '../news/news_article.dart';
 import '../news/news_priority.dart';
 
-enum NotificationKind { news, reminder, alert }
+enum NotificationKind { news, reminder, alert, wanted, missing, stolen, email }
 
 class AppNotification {
   final String id;

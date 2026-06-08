@@ -1,23 +1,53 @@
 import 'package:flutter/material.dart';
 
 import '../../models/westops/stolen_vehicle.dart';
+import '../../services/westops/stolen_vehicles_repository.dart';
+import '../../services/phone_dialer.dart';
 import '../../theme/jcf_palette.dart';
-import '../../widgets/breadcrumb_trail.dart';
+import '../../theme/nam_style.dart';
+import '../../widgets/westops/regulation_delete_dialog.dart';
 
 class StolenVehicleDetailScreen extends StatelessWidget {
-  const StolenVehicleDetailScreen({super.key, required this.vehicle});
+  const StolenVehicleDetailScreen({super.key, required this.vehicle, this.repository});
 
   final StolenVehicle vehicle;
+  final StolenVehiclesRepository? repository;
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final regulation = await confirmDeletionWithRegulation(
+      context,
+      itemLabel: vehicle.displayName,
+    );
+    if (regulation == null) return;
+    final repo = repository ?? const InMemoryStolenVehiclesRepository();
+    await repo.delete(vehicle.id);
+    navigator.pop(true);
+    messenger.showSnackBar(
+      SnackBar(content: Text('Record deleted · confirmed by reg #$regulation')),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    return Theme(
+      data: NamStyle.theme(),
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(vehicle.displayName),
-        backgroundColor: scheme.primaryContainer,
-        foregroundColor: scheme.onPrimaryContainer,
-        bottom: BreadcrumbTrail(segments: _breadcrumbSegments(context)),
+        actions: [
+          IconButton(
+            tooltip: 'Delete record',
+            onPressed: () => _confirmDelete(context),
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -35,28 +65,28 @@ class StolenVehicleDetailScreen extends StatelessWidget {
           _DetailRow(label: 'Owner', value: vehicle.ownerName),
           _DetailRow(label: 'Owner contact', value: vehicle.ownerContact),
           _DetailRow(label: 'Reward (JMD)', value: _formatReward(vehicle.rewardAmount)),
+          _DetailRow(
+            label: 'Investigating officer',
+            value: vehicle.investigatingOfficer,
+          ),
+          _CallableDetailRow(
+            label: 'Officer contact',
+            value: vehicle.investigatingOfficerPhone,
+          ),
+          _DetailRow(
+            label: 'Supervisor',
+            value: vehicle.investigatingOfficerSupervisor,
+          ),
+          _DetailRow(label: 'Station', value: vehicle.stationName),
+          _CallableDetailRow(
+            label: 'Station phone',
+            value: vehicle.stationContactNumber,
+          ),
           _DetailRow(label: 'Status', value: vehicle.status),
           _DetailRow(label: 'Reference ID', value: vehicle.id),
         ],
       ),
     );
-  }
-
-  List<BreadcrumbSegment> _breadcrumbSegments(BuildContext context) {
-    return [
-      BreadcrumbSegment(
-        label: 'Home',
-        onTap: Navigator.canPop(context)
-            ? () => Navigator.popUntil(context, (route) => route.isFirst)
-            : null,
-      ),
-      const BreadcrumbSegment(label: 'Western Operations'),
-      BreadcrumbSegment(
-        label: 'Stolen Vehicles',
-        onTap: Navigator.canPop(context) ? () => Navigator.pop(context) : null,
-      ),
-      BreadcrumbSegment(label: vehicle.displayName),
-    ];
   }
 
   String _formatDate(DateTime date) {
@@ -153,6 +183,65 @@ class _StatusChip extends StatelessWidget {
     if (lower == 'stolen') return (JcfPalette.accent, JcfPalette.onAccent);
     if (lower == 'recovered') return (JcfPalette.success, JcfPalette.onDanger);
     return (JcfPalette.textDisabled, JcfPalette.textPrimary);
+  }
+}
+
+/// A [_DetailRow] whose value is a tappable phone number handed to the dialer.
+class _CallableDetailRow extends StatelessWidget {
+  const _CallableDetailRow({required this.label, required this.value});
+
+  final String label;
+  final String? value;
+
+  Future<void> _dial(BuildContext context) async {
+    final number = value!;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await dialNumber(number);
+    } catch (_) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not call $number')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (value == null || value!.isEmpty) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return InkWell(
+      onTap: () => _dial(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                    letterSpacing: 1.1,
+                  ),
+            ),
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Icon(Icons.call, size: 16, color: scheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  value!,
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodyLarge
+                      ?.copyWith(color: scheme.primary),
+                ),
+              ],
+            ),
+            const Divider(height: 16),
+          ],
+        ),
+      ),
+    );
   }
 }
 

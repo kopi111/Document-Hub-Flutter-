@@ -20,9 +20,9 @@ class JcfDutyApp extends StatelessWidget {
     return MaterialApp(
       title: 'JCF Duty',
       debugShowCheckedModeBanner: false,
-      theme: DutyTheme.dark(),
-      darkTheme: DutyTheme.dark(),
-      themeMode: ThemeMode.dark,
+      theme: DutyTheme.light(),
+      darkTheme: DutyTheme.light(),
+      themeMode: ThemeMode.light,
       builder: (context, child) => OfflineBanner(
         connectivity: connectivity,
         child: IdleTimeoutGate(

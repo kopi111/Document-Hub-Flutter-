@@ -2,12 +2,57 @@ import 'package:flutter/material.dart';
 
 import '../../models/document.dart';
 import '../../services/github_service.dart';
-import '../../theme/jcf_palette.dart';
+import '../../theme/hub_style.dart';
+import '../../widgets/editorial/shared_axis_route.dart';
+import '../../widgets/hub/hub_category_card.dart';
+import '../../widgets/hub/hub_filter_pill.dart';
+import '../../widgets/hub/hub_gradient_header.dart';
+import '../../widgets/hub/hub_section_heading.dart';
+import '../../widgets/notifications_bell.dart';
 import '../document_list_screen.dart';
+import '../pdf_viewer_screen.dart';
 import '../search_results_screen.dart';
 
-/// Document feature landing, modelled on the JCF Document Hub proposal:
-/// a library summary, a "view all" shortcut, and a category grid.
+/// Visual identity for a document category: the tinted file icon used on the
+/// "Recent Documents" cards and the "Browse by Category" grid.
+class _CategoryStyle {
+  const _CategoryStyle(this.icon, this.tint);
+
+  final IconData icon;
+  final HubTint tint;
+}
+
+const Map<String, _CategoryStyle> _categoryStyles = {
+  'Force Orders': _CategoryStyle(Icons.shield_outlined, HubTint.blue),
+  'JCF Policies': _CategoryStyle(Icons.gavel, HubTint.purple),
+  'NPCJ': _CategoryStyle(Icons.school_outlined, HubTint.teal),
+  'TMMD': _CategoryStyle(Icons.directions_car_outlined, HubTint.orange),
+  'PMMD': _CategoryStyle(Icons.build_outlined, HubTint.blue),
+  'CIB': _CategoryStyle(Icons.search, HubTint.purple),
+  'PECC': _CategoryStyle(Icons.verified_outlined, HubTint.green),
+  'PRDB': _CategoryStyle(Icons.analytics_outlined, HubTint.teal),
+  'SOPs': _CategoryStyle(Icons.list_alt, HubTint.orange),
+  'SIMU': _CategoryStyle(Icons.travel_explore, HubTint.blue),
+  'CCN': _CategoryStyle(Icons.campaign_outlined, HubTint.green),
+  'PMAS': _CategoryStyle(Icons.assignment_outlined, HubTint.purple),
+  'FLPD': _CategoryStyle(Icons.local_police_outlined, HubTint.red),
+  'FIPT': _CategoryStyle(Icons.fingerprint, HubTint.teal),
+  'DWTT': _CategoryStyle(Icons.water_drop_outlined, HubTint.blue),
+  'FIBUA': _CategoryStyle(Icons.location_city_outlined, HubTint.orange),
+  'PPMU': _CategoryStyle(Icons.groups_outlined, HubTint.green),
+  'ICTD': _CategoryStyle(Icons.computer_outlined, HubTint.purple),
+  'ICT': _CategoryStyle(Icons.memory, HubTint.teal),
+};
+
+const _CategoryStyle _fallbackStyle =
+    _CategoryStyle(Icons.folder_outlined, HubTint.blue);
+
+_CategoryStyle _styleFor(String category) =>
+    _categoryStyles[category] ?? _fallbackStyle;
+
+/// Document feature landing in the Hub design language: a search row, category
+/// filter pills, the most recent documents, a browse-by-category grid, and a
+/// gradient knowledge-centre banner.
 class DocumentsHomeScreen extends StatefulWidget {
   const DocumentsHomeScreen({super.key});
 
@@ -16,12 +61,15 @@ class DocumentsHomeScreen extends StatefulWidget {
 }
 
 class _DocumentsHomeScreenState extends State<DocumentsHomeScreen> {
+  static const int _recentLimit = 8;
+
   final GitHubService _service = GitHubService();
 
   List<PolicyDocument> _documents = const [];
   Map<String, List<PolicyDocument>> _categories = const {};
   bool _loading = true;
   String? _error;
+  String? _selectedCategory;
 
   @override
   void initState() {
@@ -51,251 +99,225 @@ class _DocumentsHomeScreenState extends State<DocumentsHomeScreen> {
     }
   }
 
-  void _openAllDocuments() => _openCategory('All Documents', _documents);
-
-  void _openCategory(String title, List<PolicyDocument> documents) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => DocumentListScreen(title: title, documents: documents),
-      ),
-    );
+  List<PolicyDocument> get _filteredDocuments {
+    final category = _selectedCategory;
+    if (category == null) return _documents;
+    return _categories[category] ?? const [];
   }
+
+  List<PolicyDocument> get _recentDocuments {
+    final source = _filteredDocuments;
+    return source.length <= _recentLimit
+        ? source
+        : source.sublist(0, _recentLimit);
+  }
+
+  void _selectCategory(String? category) =>
+      setState(() => _selectedCategory = category);
 
   void _openSearch() {
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (_) => SearchResultsScreen(documents: _documents),
-      ),
+      sharedAxis(SearchResultsScreen(documents: _documents)),
     );
+  }
+
+  void _openAllDocuments() =>
+      _openCategory('All Documents', _documents);
+
+  void _openCategory(String title, List<PolicyDocument> documents) {
+    Navigator.push(
+      context,
+      sharedAxis(DocumentListScreen(title: title, documents: documents)),
+    );
+  }
+
+  void _openDocument(PolicyDocument document) {
+    Navigator.push(context, sharedAxis(PdfViewerScreen(document: document)));
+  }
+
+  void _openRecentList() {
+    final category = _selectedCategory;
+    if (category == null) {
+      _openAllDocuments();
+      return;
+    }
+    _openCategory(category, _filteredDocuments);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Document Hub'),
-        actions: [
-          if (!_loading && _error == null)
-            IconButton(
-              icon: const Icon(Icons.search),
-              tooltip: 'Search documents',
-              onPressed: _openSearch,
-            ),
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh library',
-            onPressed: _load,
+      backgroundColor: HubStyle.pageBackground,
+      body: Column(
+        children: [
+          HubGradientHeader(
+            title: 'Document Library',
+            showBack: true,
+            actions: const [
+              IconTheme(
+                data: IconThemeData(color: HubStyle.onGradient),
+                child: NotificationsBell(),
+              ),
+            ],
           ),
+          Expanded(child: _buildBody()),
         ],
       ),
-      body: _buildBody(),
     );
   }
 
   Widget _buildBody() {
-    if (_loading) {
-      return const Center(child: CircularProgressIndicator());
-    }
+    if (_loading) return const Center(child: CircularProgressIndicator());
     if (_error != null) {
       return _ErrorState(message: _error!, onRetry: _load);
     }
-    final categories = _categories.entries.toList();
-    return RefreshIndicator(
-      onRefresh: _load,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-        children: [
-          _SummaryRow(
-            documentCount: _documents.length,
-            categoryCount: _categories.length,
-          ),
-          const SizedBox(height: 18),
-          _ViewAllButton(
-            count: _documents.length,
-            onPressed: _openAllDocuments,
-          ),
-          const SizedBox(height: 24),
-          Text('Categories', style: Theme.of(context).textTheme.titleMedium),
-          const SizedBox(height: 12),
-          _CategoryGrid(
-            categories: categories,
-            onOpenCategory: _openCategory,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SummaryRow extends StatelessWidget {
-  const _SummaryRow({required this.documentCount, required this.categoryCount});
-
-  final int documentCount;
-  final int categoryCount;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
+    return ListView(
+      padding: const EdgeInsets.only(bottom: 28),
       children: [
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.description_outlined,
-            value: documentCount,
-            label: 'Documents',
+        const SizedBox(height: 14),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _SearchRow(onTap: _openSearch),
+        ),
+        const SizedBox(height: 14),
+        _buildCategoryPills(),
+        const SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: HubSectionHeading(
+            title: 'Recent Documents',
+            actionLabel: 'View All',
+            onAction: _openRecentList,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _SummaryCard(
-            icon: Icons.category_outlined,
-            value: categoryCount,
-            label: 'Categories',
+        const SizedBox(height: 12),
+        _buildRecentRow(),
+        const SizedBox(height: 22),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: HubSectionHeading(title: 'Browse by Category'),
+        ),
+        const SizedBox(height: 12),
+        _buildCategoryGrid(),
+        const SizedBox(height: 22),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: _KnowledgeCenterBanner(
+            documentCount: _documents.length,
+            onBrowse: _openAllDocuments,
           ),
         ),
       ],
     );
   }
-}
 
-class _SummaryCard extends StatelessWidget {
-  const _SummaryCard({
-    required this.icon,
-    required this.value,
-    required this.label,
-  });
-
-  final IconData icon;
-  final int value;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 18),
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer.withValues(alpha: 0.5),
-        borderRadius: BorderRadius.circular(14),
+  Widget _buildCategoryPills() {
+    final pills = <Widget>[
+      HubFilterPill(
+        label: 'All',
+        icon: Icons.dashboard_outlined,
+        selected: _selectedCategory == null,
+        onTap: () => _selectCategory(null),
       ),
-      child: Column(
+      for (final category in _categories.keys)
+        HubFilterPill(
+          label: category,
+          icon: _styleFor(category).icon,
+          accent: _styleFor(category).tint.foreground,
+          selected: _selectedCategory == category,
+          onTap: () => _selectCategory(category),
+        ),
+    ];
+    return HubFilterPillRow(children: pills);
+  }
+
+  Widget _buildRecentRow() {
+    final recent = _recentDocuments;
+    if (recent.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
+        child: Text(
+          'No documents in this category',
+          style: TextStyle(color: HubStyle.textSecondary),
+        ),
+      );
+    }
+    return SizedBox(
+      height: 168,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: recent.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 12),
+        itemBuilder: (_, index) {
+          final document = recent[index];
+          return _RecentCard(
+            document: document,
+            onTap: () => _openDocument(document),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCategoryGrid() {
+    final entries = _categories.entries.toList();
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: GridView.count(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        crossAxisCount: 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        childAspectRatio: 2.4,
         children: [
-          Icon(icon, color: scheme.primary, size: 26),
-          const SizedBox(height: 8),
-          Text(
-            '$value',
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: scheme.onSurface,
-                ),
-          ),
-          const SizedBox(height: 2),
-          Text(label, style: Theme.of(context).textTheme.bodySmall),
+          for (final entry in entries)
+            HubCategoryCard(
+              icon: _styleFor(entry.key).icon,
+              title: entry.key,
+              count: '${entry.value.length} docs',
+              tint: _styleFor(entry.key).tint,
+              selected: _selectedCategory == entry.key,
+              onTap: () => _openCategory(entry.key, entry.value),
+            ),
         ],
       ),
     );
   }
 }
 
-class _ViewAllButton extends StatelessWidget {
-  const _ViewAllButton({required this.count, required this.onPressed});
+class _SearchRow extends StatelessWidget {
+  const _SearchRow({required this.onTap});
 
-  final int count;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        onPressed: onPressed,
-        icon: const Icon(Icons.folder_copy_outlined),
-        label: Text('View All Documents ($count)'),
-        style: FilledButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-        ),
-      ),
-    );
-  }
-}
-
-class _CategoryGrid extends StatelessWidget {
-  const _CategoryGrid({required this.categories, required this.onOpenCategory});
-
-  final List<MapEntry<String, List<PolicyDocument>>> categories;
-  final void Function(String, List<PolicyDocument>) onOpenCategory;
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: categories.length,
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
-        childAspectRatio: 1.25,
-      ),
-      itemBuilder: (context, index) {
-        final entry = categories[index];
-        return _CategoryCard(
-          name: entry.key,
-          count: entry.value.length,
-          onTap: () => onOpenCategory(entry.key, entry.value),
-        );
-      },
-    );
-  }
-}
-
-class _CategoryCard extends StatelessWidget {
-  const _CategoryCard({
-    required this.name,
-    required this.count,
-    required this.onTap,
-  });
-
-  final String name;
-  final int count;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: scheme.surface,
+      color: HubStyle.cardSurface,
       borderRadius: BorderRadius.circular(14),
-      elevation: 0.5,
       child: InkWell(
         borderRadius: BorderRadius.circular(14),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.all(14),
+          height: 52,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: JcfPalette.hairline),
+            boxShadow: HubStyle.cardShadow,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: const Row(
             children: [
-              Icon(_iconFor(name), color: JcfPalette.iconDefault, size: 28),
-              const Spacer(),
+              Icon(Icons.search, color: HubStyle.textSecondary),
+              SizedBox(width: 10),
               Text(
-                name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: scheme.onSurface,
-                    ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                '$count documents',
-                style: Theme.of(context).textTheme.bodySmall,
+                'Search documents...',
+                style: TextStyle(
+                  color: HubStyle.textSecondary,
+                  fontSize: 15,
+                ),
               ),
             ],
           ),
@@ -303,30 +325,206 @@ class _CategoryCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  IconData _iconFor(String category) {
-    switch (category) {
-      case 'Force Orders':
-        return Icons.shield_outlined;
-      case 'JCF Policies':
-        return Icons.gavel;
-      case 'NPCJ':
-        return Icons.school_outlined;
-      case 'TMMD':
-        return Icons.directions_car_outlined;
-      case 'PMMD':
-        return Icons.build_outlined;
-      case 'CIB':
-        return Icons.search;
-      case 'SOPs':
-        return Icons.list_alt;
-      case 'PRDB':
-        return Icons.analytics_outlined;
-      case 'PECC':
-        return Icons.verified_outlined;
-      default:
-        return Icons.folder_outlined;
-    }
+class _RecentCard extends StatelessWidget {
+  const _RecentCard({required this.document, required this.onTap});
+
+  final PolicyDocument document;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _styleFor(document.category);
+    final isPdf = document.name.endsWith('.pdf');
+    return SizedBox(
+      width: 184,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: HubStyle.cardSurface,
+          borderRadius: BorderRadius.circular(HubStyle.cardRadius),
+          boxShadow: HubStyle.cardShadow,
+        ),
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(HubStyle.cardRadius),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: style.tint.background,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Icon(
+                      isPdf ? Icons.picture_as_pdf : Icons.description,
+                      color: style.tint.foreground,
+                      size: 24,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: Text(
+                      document.displayName,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: HubStyle.textPrimary,
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        height: 1.2,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    document.category,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: style.tint.foreground,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _KnowledgeCenterBanner extends StatelessWidget {
+  const _KnowledgeCenterBanner({
+    required this.documentCount,
+    required this.onBrowse,
+  });
+
+  final int documentCount;
+  final VoidCallback onBrowse;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(HubStyle.heroRadius),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(gradient: HubStyle.headerGradient),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+              child: Row(
+                children: [
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.menu_book_outlined,
+                      color: Colors.white,
+                      size: 28,
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Knowledge Center',
+                          style: TextStyle(
+                            color: HubStyle.onGradient,
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$documentCount documents available',
+                          style: const TextStyle(
+                            color: HubStyle.onGradient,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Force orders, policies and standing procedures',
+                          style: TextStyle(
+                            color: HubStyle.onGradientMuted,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _BrowsePill(onTap: onBrowse),
+                ],
+              ),
+            ),
+            HubStyle.accentBar(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BrowsePill extends StatelessWidget {
+  const _BrowsePill({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(22),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  'Browse Collection',
+                  style: TextStyle(
+                    color: HubStyle.onGradient,
+                    fontSize: 12.5,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              SizedBox(width: 3),
+              Icon(Icons.chevron_right, color: HubStyle.onGradient, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -344,9 +542,13 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.error_outline, size: 48),
+            const Icon(Icons.error_outline, size: 48, color: HubStyle.textSecondary),
             const SizedBox(height: 16),
-            Text(message, textAlign: TextAlign.center),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: HubStyle.textPrimary),
+            ),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: onRetry,

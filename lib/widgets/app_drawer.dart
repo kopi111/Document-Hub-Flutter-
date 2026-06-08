@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../screens/about_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
+import '../screens/chat/chat_list_screen.dart';
+import '../screens/directory/directory_screen.dart';
+import '../screens/email/email_login_screen.dart';
 import '../screens/home_screen.dart';
 import '../screens/map/map_screen.dart';
 import '../screens/notes/notes_screen.dart';
@@ -46,6 +49,23 @@ class AppDrawer extends StatelessWidget {
               icon: Icons.notifications_outlined,
               label: 'Notifications',
               screen: const NotificationsScreen(),
+            ),
+            const Divider(),
+            const _SectionLabel('Communications'),
+            _Entry(
+              icon: Icons.contact_phone_outlined,
+              label: 'Directory',
+              screen: const DirectoryScreen(),
+            ),
+            _Entry(
+              icon: Icons.email_outlined,
+              label: 'Email',
+              screen: const EmailLoginScreen(),
+            ),
+            _Entry(
+              icon: Icons.forum_outlined,
+              label: 'Chat',
+              screen: const ChatListScreen(),
             ),
             const Divider(),
             const _SectionLabel('Western Operations'),

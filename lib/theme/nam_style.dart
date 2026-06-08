@@ -4,13 +4,13 @@ import 'package:google_fonts/google_fonts.dart';
 import 'duty_theme.dart';
 import 'jcf_palette.dart';
 
-/// Screen-local NAM Design dark/gold styling for the West-Ops person screens.
+/// Screen-local dark styling for the West-Ops and communications screens.
 ///
 /// Deliberately NOT wired into the global [ThemeData]. These tokens, the local
-/// [theme] override, and the text helpers dress only the wanted/missing list
-/// and detail screens in NAM Design's cinematic charcoal-and-gold language,
-/// leaving the rest of the app on the duty theme. A single warm gold is the
-/// only accent; depth comes from elevation, not borders.
+/// [theme] override, and the text helpers dress the wanted/missing/stolen,
+/// directory, email and chat screens in a cinematic charcoal language accented
+/// with JCF blue. The [gold] token is retained by name but resolves to the JCF
+/// blue brand accent ([JcfPalette.accent]); depth comes from elevation.
 class NamStyle {
   const NamStyle._();
 
@@ -34,7 +34,7 @@ class NamStyle {
   /// the duty dark theme so the AppBar, breadcrumb, and dividers inherit the
   /// charcoal-and-gold palette without altering the global theme.
   static ThemeData theme() {
-    final base = DutyTheme.dark();
+    final base = DutyTheme.light();
     return base.copyWith(
       scaffoldBackgroundColor: background,
       colorScheme: base.colorScheme.copyWith(

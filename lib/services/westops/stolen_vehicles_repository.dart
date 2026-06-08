@@ -6,6 +6,12 @@ import '../../models/westops/stolen_vehicle.dart';
 // own transport.
 abstract class StolenVehiclesRepository {
   Future<List<StolenVehicle>> listAll();
+
+  /// Files a new stolen-vehicle report and returns the stored record.
+  Future<StolenVehicle> create(StolenVehicle vehicle);
+
+  /// Permanently removes the stolen-vehicle record with the given [id].
+  Future<void> delete(String id);
 }
 
 class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
@@ -13,6 +19,17 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
 
   @override
   Future<List<StolenVehicle>> listAll() async => _seedRecords;
+
+  @override
+  Future<StolenVehicle> create(StolenVehicle vehicle) async {
+    _seedRecords.insert(0, vehicle);
+    return vehicle;
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    _seedRecords.removeWhere((record) => record.id == id);
+  }
 
   static final List<StolenVehicle> _seedRecords = [
     StolenVehicle(
@@ -29,6 +46,11 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       ownerContact: '876-555-0401',
       rewardAmount: 100000,
       status: 'Stolen',
+      investigatingOfficer: 'D/Cpl. Sanjay Walters #13902',
+      investigatingOfficerPhone: '876-555-0451',
+      investigatingOfficerSupervisor: 'D/Sgt. Marlon Foster #08221',
+      stationName: 'Liguanea Police Station',
+      stationContactNumber: '876-927-7493',
       photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Toyota+Corolla+2018',
     ),
     StolenVehicle(

@@ -2,13 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../../services/news/in_memory_news_repository.dart';
 import '../../services/news/news_repository.dart';
-import '../../theme/jcf_palette.dart';
+import '../../services/phone_dialer.dart';
+import '../../theme/hub_style.dart';
+import '../../widgets/app_drawer.dart';
+import '../../widgets/hub/hub_gradient_header.dart';
+import '../../widgets/hub/hub_service_tile.dart';
+import '../../widgets/notifications_bell.dart';
 import '../about_screen.dart';
 import '../calendar/calendar_screen.dart';
 import '../documents/documents_home_screen.dart';
 import '../map/map_screen.dart';
 import '../news/news_feed_screen.dart';
 import '../notes/notes_screen.dart';
+import '../notifications/notifications_screen.dart';
 import '../westops/missing_list_screen.dart';
 import '../westops/stolen_vehicles_list_screen.dart';
 import '../westops/traffic_codes_list_screen.dart';
@@ -16,8 +22,9 @@ import '../westops/wanted_list_screen.dart';
 
 const String _emergencyNumber = '119';
 
-/// Reference-style home: welcome card, "Our Services" grid, red bottom nav
-/// with a centred emergency-call button. The welcome card carries no photo.
+/// Redesigned home: gradient header, welcome hero, colour-coded service grid,
+/// an awareness banner, and a dark bottom bar with a centred emergency-call
+/// button. Communications tools (Directory, Email, Chat) live in the drawer.
 class ServicesHomeScreen extends StatefulWidget {
   const ServicesHomeScreen({super.key});
 
@@ -26,6 +33,7 @@ class ServicesHomeScreen extends StatefulWidget {
 }
 
 class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final NewsRepository _newsRepository = InMemoryNewsRepository();
 
   void _open(Widget screen) {
@@ -42,21 +50,37 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
   void _openNotes() => _open(const NotesScreen());
   void _openMap() => _open(const MapScreen());
   void _openAbout() => _open(const AboutScreen());
+  void _openNotifications() => _open(const NotificationsScreen());
+  void _openMenu() => _scaffoldKey.currentState?.openDrawer();
+
+  Future<void> _placeEmergencyCall() async {
+    Navigator.of(context).pop();
+    try {
+      await dialNumber(_emergencyNumber);
+    } on DialFailure {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the dialer.')),
+      );
+    }
+  }
 
   void _showEmergencyCall() {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        icon: const Icon(Icons.call, color: JcfPalette.danger),
+        icon: const Icon(Icons.call, color: HubStyle.textPrimary),
         title: const Text('Emergency'),
-        content: const Text('Place a call to police emergency ($_emergencyNumber)?'),
+        content: const Text(
+          'Place a call to police emergency ($_emergencyNumber)?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
+            onPressed: _placeEmergencyCall,
             child: const Text('Call $_emergencyNumber'),
           ),
         ],
@@ -68,46 +92,55 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
         _ServiceTileData(
           icon: Icons.menu_book,
           label: 'Document\nLibrary',
+          tint: HubTint.blue,
           onTap: _openLibrary,
         ),
         _ServiceTileData(
           icon: Icons.person_pin_circle,
           label: 'Wanted\nPersons',
+          tint: HubTint.green,
           onTap: _openWanted,
         ),
         _ServiceTileData(
           icon: Icons.person_search,
           label: 'Missing\nPersons',
+          tint: HubTint.orange,
           onTap: _openMissing,
         ),
         _ServiceTileData(
           icon: Icons.directions_car,
           label: 'Stolen\nVehicles',
+          tint: HubTint.red,
           onTap: _openStolenVehicles,
         ),
         _ServiceTileData(
           icon: Icons.traffic,
           label: 'Traffic\nCodes',
+          tint: HubTint.purple,
           onTap: _openTrafficCodes,
         ),
         _ServiceTileData(
           icon: Icons.campaign,
           label: 'Force\nNews',
+          tint: HubTint.blue,
           onTap: _openNews,
         ),
         _ServiceTileData(
-          icon: Icons.event,
+          icon: Icons.event_available,
           label: 'Calendar',
+          tint: HubTint.teal,
           onTap: _openCalendar,
         ),
         _ServiceTileData(
-          icon: Icons.note_alt,
+          icon: Icons.edit_note,
           label: 'Notes',
+          tint: HubTint.orange,
           onTap: _openNotes,
         ),
         _ServiceTileData(
           icon: Icons.map,
           label: 'Map',
+          tint: HubTint.purple,
           onTap: _openMap,
         ),
       ];
@@ -115,20 +148,41 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: JcfPalette.background,
-      appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 18, 16, 24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const _WelcomeCard(),
-              const SizedBox(height: 24),
-              _ServicesGrid(services: _services),
+      key: _scaffoldKey,
+      backgroundColor: HubStyle.pageBackground,
+      drawer: const AppDrawer(),
+      body: Column(
+        children: [
+          HubGradientHeader(
+            title: 'Home',
+            leading: HubHeaderIconButton(
+              icon: Icons.apps,
+              tooltip: 'Menu',
+              onPressed: _openMenu,
+            ),
+            actions: [
+              IconTheme(
+                data: const IconThemeData(color: HubStyle.onGradient),
+                child: NotificationsBell(newsRepository: _newsRepository),
+              ),
             ],
           ),
-        ),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 18, 16, 28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const _WelcomeCard(),
+                  const SizedBox(height: 20),
+                  _ServicesGrid(services: _services),
+                  const SizedBox(height: 18),
+                  _AlertBanner(onViewAlerts: _openNotifications),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
       floatingActionButton: _CallButton(onPressed: _showEmergencyCall),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
@@ -139,31 +193,6 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
       ),
     );
   }
-
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: JcfPalette.primary,
-      foregroundColor: JcfPalette.textPrimary,
-      centerTitle: true,
-      elevation: 0,
-      leading: IconButton(
-        icon: const Icon(Icons.apps),
-        tooltip: 'Menu',
-        onPressed: _openLibrary,
-      ),
-      title: const Text(
-        'Home',
-        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22),
-      ),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_none),
-          tooltip: 'Notifications',
-          onPressed: _openNews,
-        ),
-      ],
-    );
-  }
 }
 
 class _WelcomeCard extends StatelessWidget {
@@ -171,27 +200,105 @@ class _WelcomeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: JcfPalette.heroGradient,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Welcome, Officer!',
-            style: TextStyle(
-              color: JcfPalette.textPrimary,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(HubStyle.heroRadius),
+      child: DecoratedBox(
+        decoration: const BoxDecoration(gradient: HubStyle.headerGradient),
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+              child: Row(
+                children: [
+                  const Expanded(child: _WelcomeText()),
+                  const SizedBox(width: 12),
+                  Icon(
+                    Icons.local_police,
+                    size: 64,
+                    color: Colors.white.withValues(alpha: 0.92),
+                  ),
+                ],
+              ),
             ),
+            HubStyle.accentBar(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _WelcomeText extends StatelessWidget {
+  const _WelcomeText();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text(
+          'Welcome, Officer!',
+          style: TextStyle(
+            color: HubStyle.onGradient,
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
           ),
-          SizedBox(height: 6),
-          Text(
-            'JCF · Western Operations',
-            style: TextStyle(color: JcfPalette.textSecondary, fontSize: 14),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'JCF • Western Operations',
+          style: TextStyle(color: HubStyle.onGradientMuted, fontSize: 14),
+        ),
+        const SizedBox(height: 14),
+        const _MottoPill(),
+      ],
+    );
+  }
+}
+
+class _MottoPill extends StatelessWidget {
+  const _MottoPill();
+
+  @override
+  Widget build(BuildContext context) {
+    const base = TextStyle(fontSize: 13, fontWeight: FontWeight.w600);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.28)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.star, size: 14, color: Colors.white),
+          const SizedBox(width: 6),
+          Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: 'Serve',
+                  style: base.copyWith(color: HubStyle.accentStripe[0]),
+                ),
+                const TextSpan(
+                  text: '  •  ',
+                  style: TextStyle(color: HubStyle.onGradient, fontSize: 13),
+                ),
+                TextSpan(
+                  text: 'Protect',
+                  style: base.copyWith(color: HubStyle.accentStripe[1]),
+                ),
+                const TextSpan(
+                  text: '  •  ',
+                  style: TextStyle(color: HubStyle.onGradient, fontSize: 13),
+                ),
+                TextSpan(
+                  text: 'Together',
+                  style: base.copyWith(color: HubStyle.accentStripe[2]),
+                ),
+              ],
+            ),
           ),
         ],
       ),
@@ -214,9 +321,17 @@ class _ServicesGrid extends StatelessWidget {
         crossAxisCount: 3,
         crossAxisSpacing: 12,
         mainAxisSpacing: 12,
-        childAspectRatio: 1.15,
+        childAspectRatio: 0.92,
       ),
-      itemBuilder: (context, index) => _ServiceTile(data: services[index]),
+      itemBuilder: (context, index) {
+        final data = services[index];
+        return HubServiceTile(
+          icon: data.icon,
+          label: data.label,
+          tint: data.tint,
+          onTap: data.onTap,
+        );
+      },
     );
   }
 }
@@ -225,55 +340,84 @@ class _ServiceTileData {
   const _ServiceTileData({
     required this.icon,
     required this.label,
+    required this.tint,
     required this.onTap,
   });
 
   final IconData icon;
   final String label;
+  final HubTint tint;
   final VoidCallback onTap;
 }
 
-class _ServiceTile extends StatelessWidget {
-  const _ServiceTile({required this.data});
+class _AlertBanner extends StatelessWidget {
+  const _AlertBanner({required this.onViewAlerts});
 
-  final _ServiceTileData data;
+  final VoidCallback onViewAlerts;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: JcfPalette.surface,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: data.onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: const BoxDecoration(
-                  color: JcfPalette.accent,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(data.icon, color: JcfPalette.onAccent, size: 21),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                data.label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: JcfPalette.textPrimary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  height: 1.1,
-                ),
-              ),
-            ],
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      decoration: BoxDecoration(
+        color: HubStyle.cardSurface,
+        borderRadius: BorderRadius.circular(HubStyle.cardRadius),
+        boxShadow: HubStyle.cardShadow,
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: HubStyle.navBackground,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.shield, color: Colors.white, size: 22),
           ),
-        ),
+          const SizedBox(width: 14),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Stay Alert. Stay Safe.',
+                  style: TextStyle(
+                    color: HubStyle.textPrimary,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Your awareness makes a difference.',
+                  style:
+                      TextStyle(color: HubStyle.textSecondary, fontSize: 12.5),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton(
+            onPressed: onViewAlerts,
+            style: OutlinedButton.styleFrom(
+              foregroundColor: HubTint.blue.foreground,
+              side: BorderSide(color: HubTint.blue.foreground),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('View Alerts', style: TextStyle(fontSize: 12.5)),
+                SizedBox(width: 4),
+                Icon(Icons.chevron_right, size: 16),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -286,13 +430,20 @@ class _CallButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FloatingActionButton(
-      onPressed: onPressed,
-      backgroundColor: JcfPalette.danger,
-      foregroundColor: JcfPalette.onDanger,
-      shape: const CircleBorder(),
-      tooltip: 'Emergency call',
-      child: const Icon(Icons.call),
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: HubStyle.pageBackground, width: 4),
+      ),
+      child: FloatingActionButton(
+        onPressed: onPressed,
+        backgroundColor: HubTint.blue.foreground,
+        foregroundColor: Colors.white,
+        elevation: 3,
+        shape: const CircleBorder(),
+        tooltip: 'Emergency call',
+        child: const Icon(Icons.call),
+      ),
     );
   }
 }
@@ -311,11 +462,12 @@ class _HomeBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BottomAppBar(
-      color: JcfPalette.primary,
+      color: HubStyle.navBackground,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
+      padding: EdgeInsets.zero,
       child: SizedBox(
-        height: 56,
+        height: 58,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
@@ -330,7 +482,7 @@ class _HomeBottomBar extends StatelessWidget {
               label: 'Library',
               onTap: onLibrary,
             ),
-            const SizedBox(width: 48),
+            const SizedBox(width: 56),
             _BottomBarItem(
               icon: Icons.campaign,
               label: 'News',
@@ -363,17 +515,27 @@ class _BottomBarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = selected ? JcfPalette.accent : JcfPalette.textSecondary;
-    return InkWell(
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(height: 2),
-          Text(label, style: TextStyle(color: color, fontSize: 11)),
-        ],
+    final color =
+        selected ? HubTint.blue.foreground : Colors.white.withValues(alpha: 0.75);
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: color, size: 22),
+            const SizedBox(height: 3),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

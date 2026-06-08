@@ -37,13 +37,13 @@ class DutyTheme {
         letterSpacing: letterSpacing,
       );
 
-  /// Slab-serif style for section headings and editorial titles.
+  /// Display style for section headings and titles (Poppins, redesigned look).
   static TextStyle slab({
     double size = 18,
     FontWeight weight = FontWeight.w600,
     Color? color,
   }) =>
-      GoogleFonts.robotoSlab(
+      GoogleFonts.poppins(
         fontSize: size,
         fontWeight: weight,
         color: color,
@@ -54,18 +54,18 @@ class DutyTheme {
     final base = isLight
         ? FlexThemeData.light(
             colors: const FlexSchemeColor(
-              primary: glaucous,
-              primaryContainer: powderBlue,
-              secondary: inkBlack,
-              secondaryContainer: paleSky,
-              tertiary: glaucous,
-              tertiaryContainer: paleSky,
-              appBarColor: glaucous,
-              error: Color(0xFFB3261E),
+              primary: JcfPalette.primary,
+              primaryContainer: JcfPalette.primaryVariant,
+              secondary: JcfPalette.accent,
+              secondaryContainer: JcfPalette.primaryVariant,
+              tertiary: JcfPalette.info,
+              tertiaryContainer: JcfPalette.primaryVariant,
+              appBarColor: JcfPalette.primary,
+              error: JcfPalette.danger,
             ),
-            scaffoldBackground: alabasterGrey,
+            scaffoldBackground: JcfPalette.background,
             surfaceMode: FlexSurfaceMode.levelSurfacesLowScaffold,
-            blendLevel: 2,
+            blendLevel: 1,
             appBarStyle: FlexAppBarStyle.primary,
             subThemesData: _subThemes,
             visualDensity: VisualDensity.standard,
@@ -93,27 +93,25 @@ class DutyTheme {
             swapLegacyOnMaterial3: true,
           );
 
-    final ColorScheme scheme = isLight
-        ? base.colorScheme
-        : base.colorScheme.copyWith(
-            surface: JcfPalette.surface,
-            onSurface: JcfPalette.textPrimary,
-            onSurfaceVariant: JcfPalette.textSecondary,
-            surfaceContainerLowest: JcfPalette.background,
-            surfaceContainerLow: JcfPalette.surface,
-            surfaceContainer: JcfPalette.surface,
-            surfaceContainerHigh: JcfPalette.surfaceRaised,
-            surfaceContainerHighest: JcfPalette.surfaceRaised,
-            outline: JcfPalette.hairline,
-            outlineVariant: JcfPalette.hairline,
-            onPrimary: JcfPalette.textPrimary,
-            onSecondary: JcfPalette.onAccent,
-            onError: JcfPalette.onDanger,
-          );
+    final ColorScheme scheme = base.colorScheme.copyWith(
+      surface: JcfPalette.surface,
+      onSurface: JcfPalette.textPrimary,
+      onSurfaceVariant: JcfPalette.textSecondary,
+      surfaceContainerLowest: JcfPalette.background,
+      surfaceContainerLow: JcfPalette.surface,
+      surfaceContainer: JcfPalette.surface,
+      surfaceContainerHigh: JcfPalette.surfaceRaised,
+      surfaceContainerHighest: JcfPalette.surfaceRaised,
+      outline: JcfPalette.hairline,
+      outlineVariant: JcfPalette.hairline,
+      onPrimary: const Color(0xFFFFFFFF),
+      onSecondary: JcfPalette.onAccent,
+      onError: JcfPalette.onDanger,
+    );
 
     return base.copyWith(
       colorScheme: scheme,
-      scaffoldBackgroundColor: isLight ? null : JcfPalette.background,
+      scaffoldBackgroundColor: JcfPalette.background,
       textTheme: _typography(base.textTheme),
       materialTapTargetSize: MaterialTapTargetSize.padded,
       extensions: <ThemeExtension<dynamic>>[
@@ -128,10 +126,10 @@ class DutyTheme {
         elevation: 0,
         scrolledUnderElevation: 0.6,
         centerTitle: false,
-        titleTextStyle: GoogleFonts.robotoSlab(
+        titleTextStyle: GoogleFonts.poppins(
           fontSize: 18,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.4,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.2,
           color: base.colorScheme.onSurface,
         ),
       ),
@@ -147,7 +145,7 @@ class DutyTheme {
     inputDecoratorRadius: 0,
     inputDecoratorFocusedHasBorder: true,
     inputDecoratorIsFilled: false,
-    cardRadius: 6,
+    cardRadius: 16,
     cardElevation: 0,
     bottomNavigationBarElevation: 0,
     navigationBarElevation: 0,
@@ -158,25 +156,25 @@ class DutyTheme {
   );
 
   static TextTheme _typography(TextTheme base) {
-    final body = GoogleFonts.ibmPlexSansTextTheme(base);
+    final body = GoogleFonts.poppinsTextTheme(base);
     return body.copyWith(
-      headlineLarge: GoogleFonts.robotoSlab(
+      headlineLarge: GoogleFonts.poppins(
         textStyle: body.headlineLarge,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
       ),
-      headlineMedium: GoogleFonts.robotoSlab(
+      headlineMedium: GoogleFonts.poppins(
         textStyle: body.headlineMedium,
         fontWeight: FontWeight.w700,
       ),
-      headlineSmall: GoogleFonts.robotoSlab(
+      headlineSmall: GoogleFonts.poppins(
         textStyle: body.headlineSmall,
         fontWeight: FontWeight.w600,
       ),
-      titleLarge: GoogleFonts.robotoSlab(
+      titleLarge: GoogleFonts.poppins(
         textStyle: body.titleLarge,
         fontWeight: FontWeight.w600,
       ),
-      titleMedium: GoogleFonts.robotoSlab(
+      titleMedium: GoogleFonts.poppins(
         textStyle: body.titleMedium,
         fontWeight: FontWeight.w600,
       ),
@@ -213,10 +211,10 @@ class DutyColors extends ThemeExtension<DutyColors> {
   final Color missingTeal;
 
   static const DutyColors light = DutyColors(
-    alertRed: Color(0xFFB3261E),
-    mutedGold: DutyTheme.glaucous,
-    hairline: Color(0xFFC4D3E2),
-    missingTeal: DutyTheme.inkBlack,
+    alertRed: JcfPalette.danger,
+    mutedGold: JcfPalette.accent,
+    hairline: JcfPalette.hairline,
+    missingTeal: JcfPalette.info,
   );
 
   static const DutyColors dark = DutyColors(

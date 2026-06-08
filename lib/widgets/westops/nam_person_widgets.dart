@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
@@ -162,6 +164,7 @@ class NamPoster extends StatelessWidget {
     required this.heroTag,
     required this.initials,
     this.photoUrl,
+    this.photoBytes,
     this.width = 92,
     this.height = 116,
   });
@@ -169,6 +172,7 @@ class NamPoster extends StatelessWidget {
   final String heroTag;
   final String initials;
   final String? photoUrl;
+  final Uint8List? photoBytes;
   final double width;
   final double height;
 
@@ -181,7 +185,11 @@ class NamPoster extends StatelessWidget {
         borderRadius: BorderRadius.circular(NamStyle.posterRadius),
         child: Hero(
           tag: heroTag,
-          child: namPersonImage(photoUrl: photoUrl, initials: initials),
+          child: namPersonImage(
+            photoUrl: photoUrl,
+            photoBytes: photoBytes,
+            initials: initials,
+          ),
         ),
       ),
     );
@@ -197,11 +205,13 @@ class NamPersonCard extends StatelessWidget {
     required this.details,
     required this.onTap,
     this.photoUrl,
+    this.photoBytes,
   });
 
   final String heroTag;
   final String initials;
   final String? photoUrl;
+  final Uint8List? photoBytes;
   final Widget details;
   final VoidCallback onTap;
 
@@ -228,6 +238,7 @@ class NamPersonCard extends StatelessWidget {
                   heroTag: heroTag,
                   initials: initials,
                   photoUrl: photoUrl,
+                  photoBytes: photoBytes,
                 ),
                 const SizedBox(width: 14),
                 Expanded(child: details),
@@ -254,12 +265,14 @@ class NamHeroPortrait extends StatelessWidget {
     required this.initials,
     required this.overlay,
     this.photoUrl,
+    this.photoBytes,
   });
 
   final String heroTag;
   final String initials;
   final Widget overlay;
   final String? photoUrl;
+  final Uint8List? photoBytes;
 
   @override
   Widget build(BuildContext context) {
@@ -269,7 +282,11 @@ class NamHeroPortrait extends StatelessWidget {
           aspectRatio: 4 / 3,
           child: Hero(
             tag: heroTag,
-            child: namPersonImage(photoUrl: photoUrl, initials: initials),
+            child: namPersonImage(
+              photoUrl: photoUrl,
+              photoBytes: photoBytes,
+              initials: initials,
+            ),
           ),
         ),
         Positioned.fill(
@@ -299,7 +316,7 @@ class NamHeroPortrait extends StatelessWidget {
 class NamDetailCard extends StatelessWidget {
   const NamDetailCard({super.key, required this.rows});
 
-  final List<NamDetailRow> rows;
+  final List<Widget> rows;
 
   @override
   Widget build(BuildContext context) {
@@ -366,10 +383,22 @@ class NamDetailRow extends StatelessWidget {
   }
 }
 
-/// Network mugshot with a tinted initials placeholder fallback.
-Widget namPersonImage({required String? photoUrl, required String initials}) {
+/// Mugshot from uploaded bytes or a network URL, with a tinted initials
+/// placeholder fallback. Locally captured photos ([photoBytes]) take priority.
+Widget namPersonImage({
+  required String? photoUrl,
+  required String initials,
+  Uint8List? photoBytes,
+}) {
   final placeholder =
       MugshotPlaceholder(initials: initials, tint: NamStyle.surfaceRaised);
+  if (photoBytes != null) {
+    return Image.memory(
+      photoBytes,
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => placeholder,
+    );
+  }
   if (photoUrl == null || photoUrl.isEmpty) return placeholder;
   return CachedNetworkImage(
     imageUrl: photoUrl,
