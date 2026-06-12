@@ -185,31 +185,10 @@ void main() {
       expect(conversation.lastMessage, same(last));
     });
 
-    test('returns a non-null sentinel ChatMessage when messages list is empty', () {
+    test('returns null when messages list is empty', () {
       final conversation = buildConversation(messages: []);
 
-      // Must not throw; must not be null (Special-Case pattern).
-      expect(conversation.lastMessage, isNotNull);
-    });
-
-    test('sentinel ChatMessage has empty text when messages list is empty', () {
-      final conversation = buildConversation(messages: []);
-
-      expect(conversation.lastMessage.text, equals(''));
-    });
-
-    test('sentinel ChatMessage has empty id when messages list is empty', () {
-      final conversation = buildConversation(messages: []);
-
-      expect(conversation.lastMessage.id, equals(''));
-    });
-
-    test('sentinel ChatMessage is not fromMe when messages list is empty', () {
-      final conversation = buildConversation(messages: []);
-
-      // Sentinel defaults fromMe to false so UI does not attribute it
-      // to the current user.
-      expect(conversation.lastMessage.fromMe, isFalse);
+      expect(conversation.lastMessage, isNull);
     });
 
     test('lastMessage reflects order: always the item at the tail of the list', () {
@@ -219,8 +198,8 @@ void main() {
       );
       final conversation = buildConversation(messages: messages);
 
-      expect(conversation.lastMessage.id, equals('msg-9'));
-      expect(conversation.lastMessage.text, equals('Message 9'));
+      expect(conversation.lastMessage?.id, equals('msg-9'));
+      expect(conversation.lastMessage?.text, equals('Message 9'));
     });
   });
 

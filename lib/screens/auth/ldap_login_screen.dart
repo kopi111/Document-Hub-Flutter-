@@ -61,10 +61,12 @@ class _LdapLoginScreenState extends State<LdapLoginScreen> {
       );
     } on AuthException catch (e) {
       if (!mounted) return;
-      setState(() {
-        _signingIn = false;
-        _error = e.message;
-      });
+      setState(() => _error = e.message);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _error = 'Sign-in failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _signingIn = false);
     }
   }
 

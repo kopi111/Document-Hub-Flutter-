@@ -35,7 +35,13 @@ class WantedPhoto extends StatelessWidget {
   Widget _buildImage() {
     final bytes = photoBytes;
     if (bytes != null) {
-      return Image.memory(bytes, fit: BoxFit.cover, width: size, height: size);
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        errorBuilder: (context, error, stackTrace) => _placeholder(),
+      );
     }
     final url = photoUrl;
     if (url != null && url.isNotEmpty) {

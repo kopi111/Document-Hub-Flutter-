@@ -136,39 +136,27 @@ void main() {
           () async {
         final convs = await repository.conversations();
         for (final conv in convs) {
-          // The sentinel (empty text) must only appear for empty threads.
           if (conv.messages.isNotEmpty) {
-            expect(conv.lastMessage.text.trim(), isNotEmpty,
+            expect(conv.lastMessage?.text.trim(), isNotEmpty,
                 reason:
                     'lastMessage.text must be non-empty when messages is not empty (conv ${conv.id})');
           }
         }
       });
 
-      test('lastMessage sentinel is returned only when messages list is empty',
-          () async {
-        // Verify sentinel shape by constructing a bare conversation with no
-        // messages. contact is required by the constructor but is not accessed
-        // by lastMessage, so we supply a minimal valid value.
-        const emptyConv = ChatConversation(
+      test('lastMessage is null when the messages list is empty', () async {
+        final emptyConv = ChatConversation(
           id: 'test-empty',
-          contact: ChatContact(
+          contact: const ChatContact(
             id: 'x',
             name: 'X',
             rank: 'Constable',
             station: 'Test',
           ),
-          messages: [],
+          messages: const [],
         );
-        final sentinel = emptyConv.lastMessage;
-        expect(sentinel.id, isEmpty,
-            reason: 'sentinel id must be empty string');
-        expect(sentinel.text, isEmpty,
-            reason: 'sentinel text must be empty string');
-        expect(sentinel.sentAt, equals(DateTime(2000)),
-            reason: 'sentinel sentAt must be epoch-ish DateTime(2000)');
-        expect(sentinel.fromMe, isFalse,
-            reason: 'sentinel fromMe must be false');
+        expect(emptyConv.lastMessage, isNull,
+            reason: 'an empty thread must report a null lastMessage');
       });
     });
 
@@ -242,14 +230,15 @@ void main() {
         }
       });
 
-      test('conversations are in the expected seeded id order', () async {
+      test('conversations are ordered by last-message time, most recent first',
+          () async {
         final convs = await repository.conversations();
         final ids = convs.map((c) => c.id).toList();
         expect(ids, equals(<String>[
+          'conv-003',
           'conv-grp-901',
           'conv-001',
           'conv-002',
-          'conv-003',
           'conv-004',
           'conv-005',
           'conv-006',
@@ -258,7 +247,7 @@ void main() {
     });
 
     // -------------------------------------------------------------------------
-    group('session persistence (mutable static backing list)', () {
+    group('session persistence (per-instance backing list)', () {
       // Track the message we append so we can remove it in tearDown.
       ChatMessage? _appended;
       ChatConversation? _targetConversation;
@@ -293,60 +282,61 @@ void main() {
 
         expect(sameConvAfter.messages.length, equals(countBefore + 1),
             reason:
-                'appended message must be visible on subsequent conversations() call (mutable static list)');
+                'appended message must be visible on subsequent conversations() call (mutable per-instance list)');
         expect(sameConvAfter.messages.last.id, equals('msg-test-append'));
       });
 
       test(
-          'messages list is mutable: appended message is observable on a different instance',
+          'a separate instance has its own seed and does not see another instance\'s appends',
           () async {
         final convsBefore = await repository.conversations();
-        _targetConversation = convsBefore[1]; // use conv-002
-        final countBefore = _targetConversation!.messages.length;
+        _targetConversation = convsBefore[1];
+        final otherInstanceCount = await InMemoryChatRepository()
+            .conversations()
+            .then((convs) => convs
+                .firstWhere((c) => c.id == _targetConversation!.id)
+                .messages
+                .length);
 
         _appended = ChatMessage(
-          id: 'msg-test-cross-instance',
-          text: 'Cross-instance persistence test.',
+          id: 'msg-test-isolation',
+          text: 'Per-instance isolation test.',
           sentAt: DateTime(2026, 5, 31, 23, 59),
           fromMe: false,
         );
         _targetConversation!.messages.add(_appended!);
 
-        // A brand-new repository instance must see the change because the
-        // backing list is static.
         final other = InMemoryChatRepository();
         final convsAfter = await other.conversations();
         final sameConvAfter =
             convsAfter.firstWhere((c) => c.id == _targetConversation!.id);
 
-        expect(sameConvAfter.messages.length, equals(countBefore + 1),
+        expect(sameConvAfter.messages.length, equals(otherInstanceCount),
             reason:
-                'static backing list means new instance shares the same messages list');
+                'each instance owns its seed list, so appends do not leak across instances');
       });
 
-      test('conversations() returns the SAME list object on repeated calls',
-          () async {
-        // The implementation returns _conversations directly (no copy), so the
-        // returned reference must be identical across calls.
+      test('conversations() returns equal contents on repeated calls', () async {
         final first = await repository.conversations();
         final second = await repository.conversations();
-        expect(identical(first, second), isTrue,
-            reason:
-                'conversations() returns the static list by reference — both calls must yield the same object');
+        expect(
+          second.map((c) => c.id).toList(),
+          equals(first.map((c) => c.id).toList()),
+          reason:
+              'repeated calls must report the same conversations in the same order',
+        );
       });
     });
 
     // -------------------------------------------------------------------------
     group('unreadCount derived property', () {
-      test('unreadCount equals the number of messages where fromMe is false',
+      test('every seeded conversation starts read, so unreadCount is zero',
           () async {
         final convs = await repository.conversations();
         for (final conv in convs) {
-          final expected =
-              conv.messages.where((m) => !m.fromMe).length;
-          expect(conv.unreadCount, equals(expected),
+          expect(conv.unreadCount, equals(0),
               reason:
-                  'unreadCount for conv ${conv.id} must equal inbound message count');
+                  'seed marks every thread read on first launch (conv ${conv.id})');
         }
       });
 

@@ -30,6 +30,9 @@ class _MissingDetailScreenState extends State<MissingDetailScreen> {
       widget.repository ?? const InMemoryMissingPersonsRepository();
   late MissingPerson _person = widget.person;
 
+  bool _submitting = false;
+  bool _changed = false;
+
   Future<void> _addSighting() async {
     final sighting = await Navigator.push<Sighting>(
       context,
@@ -38,12 +41,22 @@ class _MissingDetailScreenState extends State<MissingDetailScreen> {
       ),
     );
     if (sighting == null) return;
-    final updated = await _repository.addSighting(_person.id, sighting);
-    if (!mounted) return;
-    setState(() => _person = updated);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tip logged to the sightings trail')),
-    );
+    try {
+      final updated = await _repository.addSighting(_person.id, sighting);
+      if (!mounted) return;
+      setState(() {
+        _person = updated;
+        _changed = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tip logged to the sightings trail')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not log sighting: $error')),
+      );
+    }
   }
 
   Future<void> _markFound() async {
@@ -52,18 +65,31 @@ class _MissingDetailScreenState extends State<MissingDetailScreen> {
       MaterialPageRoute(builder: (_) => MarkFoundScreen(person: _person)),
     );
     if (result == null) return;
-    final updated = await _repository.markFound(
-      id: _person.id,
-      foundDate: result.foundDate,
-      foundLocation: result.foundLocation,
-      foundBy: result.foundBy,
-      foundNotes: result.foundNotes,
-    );
-    if (!mounted) return;
-    setState(() => _person = updated);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${_person.fullName} marked as found')),
-    );
+    setState(() => _submitting = true);
+    try {
+      final updated = await _repository.markFound(
+        id: _person.id,
+        foundDate: result.foundDate,
+        foundLocation: result.foundLocation,
+        foundBy: result.foundBy,
+        foundNotes: result.foundNotes,
+      );
+      if (!mounted) return;
+      setState(() {
+        _person = updated;
+        _changed = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_person.fullName} marked as found')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update record: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   Future<void> _call() async {
@@ -107,53 +133,59 @@ class _MissingDetailScreenState extends State<MissingDetailScreen> {
     final person = _person;
     return Theme(
       data: WantedStyle.theme(),
-      child: Scaffold(
-        appBar: AppBar(
-          title: Row(
-            children: [
-              const JcfCrest(size: 24),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(person.fullName,
-                    style: WantedStyle.title(
-                        size: 17, weight: FontWeight.w800, color: WantedStyle.navy),
-                    overflow: TextOverflow.ellipsis),
+      child: PopScope(
+        canPop: false,
+        onPopInvokedWithResult: (didPop, _) {
+          if (!didPop) Navigator.of(context).pop(_changed);
+        },
+        child: Scaffold(
+          appBar: AppBar(
+            title: Row(
+              children: [
+                const JcfCrest(size: 24),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(person.fullName,
+                      style: WantedStyle.title(
+                          size: 17, weight: FontWeight.w800, color: WantedStyle.navy),
+                      overflow: TextOverflow.ellipsis),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                tooltip: 'Delete record',
+                onPressed: _confirmDelete,
+                icon: const Icon(Icons.delete_outline, color: WantedStyle.red),
               ),
             ],
           ),
-          actions: [
-            IconButton(
-              tooltip: 'Delete record',
-              onPressed: _confirmDelete,
-              icon: const Icon(Icons.delete_outline, color: WantedStyle.red),
-            ),
-          ],
-        ),
-        floatingActionButton: person.isFound
-            ? null
-            : FloatingActionButton.extended(
-                onPressed: _markFound,
-                backgroundColor: WantedStyle.green,
-                foregroundColor: Colors.white,
-                icon: const Icon(Icons.check_circle_outline),
-                label: Text('Mark Found',
-                    style: WantedStyle.title(
-                        size: 14, weight: FontWeight.w700, color: Colors.white)),
+          floatingActionButton: person.isFound
+              ? null
+              : FloatingActionButton.extended(
+                  onPressed: _submitting ? null : _markFound,
+                  backgroundColor: WantedStyle.green,
+                  foregroundColor: Colors.white,
+                  icon: const Icon(Icons.check_circle_outline),
+                  label: Text('Mark Found',
+                      style: WantedStyle.title(
+                          size: 14, weight: FontWeight.w700, color: Colors.white)),
+                ),
+          body: ListView(
+            padding: const EdgeInsets.only(bottom: 96),
+            children: [
+              _PhotoHeader(person: person),
+              _Identity(person: person),
+              FbiActionBar(
+                onShare: _share,
+                onTip: _addSighting,
+                onCall: _call,
+                callLabel: 'Call Contact',
               ),
-        body: ListView(
-          padding: const EdgeInsets.only(bottom: 96),
-          children: [
-            _PhotoHeader(person: person),
-            _Identity(person: person),
-            FbiActionBar(
-              onShare: _share,
-              onTip: _addSighting,
-              onCall: _call,
-              callLabel: 'Call Contact',
-            ),
-            FbiFieldsCard(rows: _buildRows(person)),
-            FbiSightingsCard(sightings: person.sightings, onAdd: _addSighting),
-          ],
+              FbiFieldsCard(rows: _buildRows(person)),
+              FbiSightingsCard(sightings: person.sightings, onAdd: _addSighting),
+            ],
+          ),
         ),
       ),
     );
@@ -172,7 +204,9 @@ class _MissingDetailScreenState extends State<MissingDetailScreen> {
     add('Date of birth', _formatDate(person.dateOfBirth));
     add('Occupation', person.occupation);
     add('Address', person.address);
+    add('Parish', person.parish);
     add('Reported', _formatDate(person.reportedDate));
+    add('Last seen date', _formatDate(person.lastSeenDate));
     add('Last seen', person.lastSeenLocation);
     add('Description', person.description);
     add('Height', person.height);

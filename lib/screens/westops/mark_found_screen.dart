@@ -58,6 +58,7 @@ class _MarkFoundScreenState extends State<MarkFoundScreen> {
       lastDate: DateTime.now(),
     );
     if (picked == null) return;
+    if (!mounted) return;
     setState(() => _foundDate = picked);
   }
 

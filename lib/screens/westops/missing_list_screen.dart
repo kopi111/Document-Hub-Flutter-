@@ -43,13 +43,16 @@ extension on _Filter {
         _Filter.children => Icons.child_care,
       };
 
-  bool matches(MissingPerson person) => switch (this) {
-        _Filter.all => true,
-        _Filter.active => !person.isFound,
-        _Filter.found => person.isFound,
-        _Filter.adults => _ageOf(person) != null && _ageOf(person)! >= 18,
-        _Filter.children => _ageOf(person) != null && _ageOf(person)! < 18,
-      };
+  bool matches(MissingPerson person) {
+    final age = _ageOf(person);
+    return switch (this) {
+      _Filter.all => true,
+      _Filter.active => !person.isFound,
+      _Filter.found => person.isFound,
+      _Filter.adults => age != null && age >= 18,
+      _Filter.children => age != null && age < 18,
+    };
+  }
 }
 
 /// A "Browse by Category" grouping, backed by a real field predicate.
@@ -154,13 +157,16 @@ class _MissingListScreenState extends State<MissingListScreen> {
 
   List<MissingPerson> get _visible {
     final query = _query.trim().toLowerCase();
-    return _all.where((person) {
+    final results = _all.where((person) {
       if (!_filter.matches(person)) return false;
       if (query.isEmpty) return true;
       if (person.fullName.toLowerCase().contains(query)) return true;
+      if (person.parish?.toLowerCase().contains(query) ?? false) return true;
       final location = person.lastSeenLocation;
       return location != null && location.toLowerCase().contains(query);
     }).toList();
+    results.sort((a, b) => b.reportedDate.compareTo(a.reportedDate));
+    return results;
   }
 
   List<MissingPerson> get _recentlyAdded {
@@ -190,11 +196,11 @@ class _MissingListScreenState extends State<MissingListScreen> {
       setState(() => _filter = _filter == filter ? _Filter.all : filter);
 
   Future<void> _openDetail(MissingPerson person) async {
-    await Navigator.push(
+    final changed = await Navigator.push<bool>(
       context,
       sharedAxis(MissingDetailScreen(person: person, repository: _repository)),
     );
-    await _loadRecords();
+    if (changed == true) await _loadRecords();
   }
 
   Future<void> _openAdd() async {
@@ -582,6 +588,10 @@ class _RecentCard extends StatelessWidget {
                     children: [
                       _Avatar(person: person, diameter: 44),
                       const Spacer(),
+                      if (person.isFound) ...[
+                        _StatusChip(found: true),
+                        const SizedBox(width: 4),
+                      ],
                       if (isNewest) const _NewBadge(),
                     ],
                   ),
@@ -609,7 +619,7 @@ class _RecentCard extends StatelessWidget {
                   const SizedBox(height: 8),
                   _MetaLine(
                     icon: Icons.event_outlined,
-                    text: 'Seen ${_formatDate(person.reportedDate)}',
+                    text: 'Reported ${_formatDate(person.reportedDate)}',
                   ),
                   if (person.lastSeenLocation != null &&
                       person.lastSeenLocation!.isNotEmpty) ...[
@@ -681,6 +691,14 @@ class _MissingCard extends StatelessWidget {
                       const SizedBox(height: 6),
                       if (age != null)
                         _MetaLine(icon: Icons.cake_outlined, text: 'Age $age'),
+                      if (person.parish != null &&
+                          person.parish!.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        _MetaLine(
+                          icon: Icons.location_city_outlined,
+                          text: person.parish!,
+                        ),
+                      ],
                       if (person.lastSeenLocation != null &&
                           person.lastSeenLocation!.isNotEmpty) ...[
                         const SizedBox(height: 4),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
+import '../../theme/duty_theme.dart';
+
 /// FBI-Wanted-flavoured styling for the wanted screens only.
 ///
 /// A light, document-board look: white app bar with navy title, grey canvas,

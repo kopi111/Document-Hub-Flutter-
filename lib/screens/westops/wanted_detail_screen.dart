@@ -30,24 +30,37 @@ class _WantedDetailScreenState extends State<WantedDetailScreen> {
       widget.repository ?? const InMemoryWantedPersonsRepository();
   late WantedPerson _person = widget.person;
 
+  bool _submitting = false;
+
   Future<void> _markCaptured() async {
+    if (_submitting) return;
     final result = await Navigator.push<MarkCapturedResult>(
       context,
       MaterialPageRoute(builder: (_) => MarkCapturedScreen(person: _person)),
     );
     if (result == null) return;
-    final updated = await _repository.markCaptured(
-      id: _person.id,
-      capturedDate: result.capturedDate,
-      capturedLocation: result.capturedLocation,
-      capturedBy: result.capturedBy,
-      captureNotes: result.captureNotes,
-    );
-    if (!mounted) return;
-    setState(() => _person = updated);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('${_person.fullName} marked as captured')),
-    );
+    setState(() => _submitting = true);
+    try {
+      final updated = await _repository.markCaptured(
+        id: _person.id,
+        capturedDate: result.capturedDate,
+        capturedLocation: result.capturedLocation,
+        capturedBy: result.capturedBy,
+        captureNotes: result.captureNotes,
+      );
+      if (!mounted) return;
+      setState(() => _person = updated);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${_person.fullName} marked as captured')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not update record: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
   }
 
   Future<void> _addSighting() async {
@@ -58,12 +71,19 @@ class _WantedDetailScreenState extends State<WantedDetailScreen> {
       ),
     );
     if (sighting == null) return;
-    final updated = await _repository.addSighting(_person.id, sighting);
-    if (!mounted) return;
-    setState(() => _person = updated);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Tip logged to the sightings trail')),
-    );
+    try {
+      final updated = await _repository.addSighting(_person.id, sighting);
+      if (!mounted) return;
+      setState(() => _person = updated);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Tip logged to the sightings trail')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not log sighting: $error')),
+      );
+    }
   }
 
   Future<void> _call() async {
@@ -132,7 +152,7 @@ class _WantedDetailScreenState extends State<WantedDetailScreen> {
         floatingActionButton: person.isCaptured
             ? null
             : FloatingActionButton.extended(
-                onPressed: _markCaptured,
+                onPressed: _submitting ? null : _markCaptured,
                 backgroundColor: WantedStyle.green,
                 foregroundColor: Colors.white,
                 icon: const Icon(Icons.gavel_outlined),

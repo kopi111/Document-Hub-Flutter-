@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../models/notifications/app_notification.dart';
 import '../../models/westops/missing_person.dart';
@@ -24,6 +25,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
   final TextEditingController _age = TextEditingController();
   final TextEditingController _occupation = TextEditingController();
   final TextEditingController _address = TextEditingController();
+  final TextEditingController _parish = TextEditingController();
   final TextEditingController _lastSeen = TextEditingController();
   final TextEditingController _description = TextEditingController();
   final TextEditingController _contactPerson = TextEditingController();
@@ -38,7 +40,10 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
   String? _gender;
   DateTime? _dateOfBirth;
   DateTime _reportedDate = DateTime.now();
+  DateTime? _lastSeenDate;
   bool _saving = false;
+
+  static final _phonePattern = RegExp(r'^[\d\s+\-()\[\]]+$');
 
   @override
   void dispose() {
@@ -47,6 +52,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
     _age.dispose();
     _occupation.dispose();
     _address.dispose();
+    _parish.dispose();
     _lastSeen.dispose();
     _description.dispose();
     _contactPerson.dispose();
@@ -63,6 +69,29 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
   String? _required(String? value) =>
       (value == null || value.trim().isEmpty) ? 'Required' : null;
 
+  String? _validateAge(String? value) {
+    if (value == null || value.trim().isEmpty) return 'Required';
+    final n = int.tryParse(value.trim());
+    if (n == null) return 'Enter a whole number';
+    if (n < 1 || n > 130) return 'Age must be between 1 and 130';
+    final dob = _dateOfBirth;
+    if (dob != null) {
+      final today = DateTime.now();
+      var derived = today.year - dob.year;
+      final hadBirthday = today.month > dob.month ||
+          (today.month == dob.month && today.day >= dob.day);
+      if (!hadBirthday) derived--;
+      if ((n - derived).abs() > 1) return 'Age does not match date of birth';
+    }
+    return null;
+  }
+
+  String? _validatePhone(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    if (!_phonePattern.hasMatch(value.trim())) return 'Invalid phone number';
+    return null;
+  }
+
   String? _trimToNull(TextEditingController controller) {
     final text = controller.text.trim();
     return text.isEmpty ? null : text;
@@ -70,12 +99,6 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_dateOfBirth == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Date of birth is required')),
-      );
-      return;
-    }
     setState(() => _saving = true);
     final person = MissingPerson(
       id: 'MP-${DateTime.now().millisecondsSinceEpoch}',
@@ -87,7 +110,9 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
       dateOfBirth: _dateOfBirth,
       occupation: _trimToNull(_occupation),
       address: _trimToNull(_address),
+      parish: _trimToNull(_parish),
       lastSeenLocation: _trimToNull(_lastSeen),
+      lastSeenDate: _lastSeenDate,
       description: _trimToNull(_description),
       height: _trimToNull(_height),
       weight: _trimToNull(_weight),
@@ -131,6 +156,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _firstName,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 100,
                 decoration: const InputDecoration(labelText: 'First name'),
                 validator: _required,
               ),
@@ -138,6 +164,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _lastName,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 100,
                 decoration: const InputDecoration(labelText: 'Last name'),
                 validator: _required,
               ),
@@ -151,24 +178,27 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
                   DropdownMenuItem(value: 'Other', child: Text('Other')),
                 ],
                 onChanged: (value) => setState(() => _gender = value),
+                validator: (value) => value == null ? 'Required' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _age,
                 keyboardType: TextInputType.number,
+                maxLength: 3,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(labelText: 'Age'),
-                validator: _required,
+                validator: _validateAge,
               ),
               const SizedBox(height: 16),
-              LabeledDateField(
-                label: 'Date of birth',
-                date: _dateOfBirth,
+              _DobField(
+                dateOfBirth: _dateOfBirth,
                 onChanged: (value) => setState(() => _dateOfBirth = value),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _occupation,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 100,
                 decoration: const InputDecoration(labelText: 'Occupation'),
                 validator: _required,
               ),
@@ -176,28 +206,48 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _address,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 200,
                 decoration: const InputDecoration(labelText: 'Address'),
                 validator: _required,
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: _parish,
+                textCapitalization: TextCapitalization.words,
+                maxLength: 100,
+                decoration: const InputDecoration(
+                  labelText: 'Parish (optional)',
+                ),
               ),
               const SizedBox(height: 16),
               LabeledDateField(
                 label: 'Reported date',
                 date: _reportedDate,
+                firstDate: DateTime.now().subtract(const Duration(days: 365)),
                 onChanged: (value) => setState(() => _reportedDate = value),
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _lastSeen,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 200,
                 decoration: const InputDecoration(
                   labelText: 'Last seen location',
                 ),
                 validator: _required,
               ),
               const SizedBox(height: 16),
+              LabeledDateField(
+                label: 'Last seen date (optional)',
+                date: _lastSeenDate,
+                lastDate: _reportedDate,
+                onChanged: (value) => setState(() => _lastSeenDate = value),
+              ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: _description,
                 maxLines: 3,
+                maxLength: 500,
                 textCapitalization: TextCapitalization.sentences,
                 decoration: const InputDecoration(
                   labelText: 'Description (optional)',
@@ -208,6 +258,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _height,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 20,
                 decoration: const InputDecoration(
                   labelText: 'Height (optional)',
                 ),
@@ -216,6 +267,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _weight,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 20,
                 decoration: const InputDecoration(
                   labelText: 'Weight (optional)',
                 ),
@@ -224,6 +276,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _complexion,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 100,
                 decoration: const InputDecoration(
                   labelText: 'Complexion (optional)',
                 ),
@@ -232,6 +285,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _tattoos,
                 textCapitalization: TextCapitalization.sentences,
+                maxLength: 200,
                 decoration: const InputDecoration(
                   labelText: 'Tattoos (optional)',
                 ),
@@ -240,6 +294,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _physicalAbilities,
                 textCapitalization: TextCapitalization.sentences,
+                maxLength: 200,
                 decoration: const InputDecoration(
                   labelText: 'Physical abilities (optional)',
                 ),
@@ -248,6 +303,7 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _contactPerson,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 100,
                 decoration: const InputDecoration(
                   labelText: 'Contact person',
                 ),
@@ -257,14 +313,17 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
               TextFormField(
                 controller: _contactPhone,
                 keyboardType: TextInputType.phone,
+                maxLength: 20,
                 decoration: const InputDecoration(
                   labelText: 'Contact phone (optional)',
                 ),
+                validator: _validatePhone,
               ),
               const SizedBox(height: 16),
               TextFormField(
                 controller: _officer,
                 textCapitalization: TextCapitalization.words,
+                maxLength: 100,
                 decoration: const InputDecoration(
                   labelText: 'Investigating officer',
                 ),
@@ -280,6 +339,49 @@ class _AddMissingPersonScreenState extends State<AddMissingPersonScreen> {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// FormField wrapper around [LabeledDateField] so DOB validates inline with
+/// the rest of the form rather than via a floating SnackBar.
+class _DobField extends StatelessWidget {
+  const _DobField({required this.dateOfBirth, required this.onChanged});
+
+  final DateTime? dateOfBirth;
+  final ValueChanged<DateTime> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return FormField<DateTime>(
+      validator: (_) => dateOfBirth == null ? 'Date of birth is required' : null,
+      builder: (state) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LabeledDateField(
+              label: 'Date of birth',
+              date: dateOfBirth,
+              firstDate: DateTime(1900),
+              onChanged: (value) {
+                onChanged(value);
+                state.didChange(value);
+              },
+            ),
+            if (state.hasError)
+              Padding(
+                padding: const EdgeInsets.only(left: 12, top: 4),
+                child: Text(
+                  state.errorText!,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 }

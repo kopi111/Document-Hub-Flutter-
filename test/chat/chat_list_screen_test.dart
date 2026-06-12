@@ -24,7 +24,47 @@ import 'package:document_hub/services/chat/chat_repository.dart';
 /// message count, not a true unread count. The tests below assert the observed
 /// (current) behaviour; they are annotated where the behaviour diverges from
 /// what a user would reasonably expect.
-class _FakeChatRepository implements ChatRepository {
+/// Shared base that satisfies every [ChatRepository] member the list screen
+/// never calls, so each concrete fake only overrides the behaviour it needs.
+abstract class _BaseFakeChatRepository implements ChatRepository {
+  @override
+  Future<List<ChatContact>> availableContacts() async => const [];
+
+  @override
+  Future<List<ChatContact>> allContacts() async => const [];
+
+  @override
+  Future<ChatConversation> startConversation(ChatContact contact) async =>
+      ChatConversation(id: 'conv-${contact.id}', contact: contact, messages: []);
+
+  @override
+  Future<ChatConversation> startGroupConversation(
+    String name,
+    List<ChatContact> members,
+  ) async =>
+      ChatConversation(
+        id: 'conv-group-$name',
+        contact: members.first,
+        messages: [],
+      );
+
+  @override
+  Future<List<ChatMessage>> messagesFor(String conversationId) async => const [];
+
+  @override
+  Future<ChatMessage> sendMessage(String conversationId, String text) =>
+      throw UnimplementedError('sendMessage is not exercised by this test.');
+
+  @override
+  Future<void> markRead(String conversationId) async {}
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(
+          '${invocation.memberName} is not exercised by this test.');
+}
+
+class _FakeChatRepository extends _BaseFakeChatRepository {
   static final _aliceContact = const ChatContact(
     id: 'test-alice',
     name: 'Alice Archer',
@@ -90,24 +130,6 @@ class _FakeChatRepository implements ChatRepository {
     await Future<void>.delayed(const Duration(milliseconds: 20));
     return [_aliceConversation, _bobConversation];
   }
-
-  @override
-  Future<List<ChatContact>> availableContacts() async => const [];
-
-  @override
-  Future<ChatConversation> startConversation(ChatContact contact) async =>
-      ChatConversation(id: 'conv-${contact.id}', contact: contact, messages: []);
-
-  @override
-  Future<ChatConversation> startGroupConversation(
-    String name,
-    List<ChatContact> members,
-  ) async =>
-      ChatConversation(
-        id: 'conv-group-$name',
-        contact: members.first,
-        messages: [],
-      );
 
   // Expose conversations for assertions.
   static ChatConversation get alice => _aliceConversation;
@@ -287,50 +309,14 @@ void main() {
 // Edge-case repositories used by the last two tests.
 // ---------------------------------------------------------------------------
 
-class _ThrowingChatRepository implements ChatRepository {
+class _ThrowingChatRepository extends _BaseFakeChatRepository {
   @override
   Future<List<ChatConversation>> conversations() async {
     throw Exception('network error');
   }
-
-  @override
-  Future<List<ChatContact>> availableContacts() async => const [];
-
-  @override
-  Future<ChatConversation> startConversation(ChatContact contact) async =>
-      ChatConversation(id: 'conv-${contact.id}', contact: contact, messages: []);
-
-  @override
-  Future<ChatConversation> startGroupConversation(
-    String name,
-    List<ChatContact> members,
-  ) async =>
-      ChatConversation(
-        id: 'conv-group-$name',
-        contact: members.first,
-        messages: [],
-      );
 }
 
-class _EmptyChatRepository implements ChatRepository {
+class _EmptyChatRepository extends _BaseFakeChatRepository {
   @override
   Future<List<ChatConversation>> conversations() async => [];
-
-  @override
-  Future<List<ChatContact>> availableContacts() async => const [];
-
-  @override
-  Future<ChatConversation> startConversation(ChatContact contact) async =>
-      ChatConversation(id: 'conv-${contact.id}', contact: contact, messages: []);
-
-  @override
-  Future<ChatConversation> startGroupConversation(
-    String name,
-    List<ChatContact> members,
-  ) async =>
-      ChatConversation(
-        id: 'conv-group-$name',
-        contact: members.first,
-        messages: [],
-      );
 }

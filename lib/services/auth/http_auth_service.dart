@@ -45,9 +45,7 @@ class HttpAuthService implements AuthService {
       throw AuthException(e.message);
     }
     _throwForStatus(response);
-    final json =
-        jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-    final session = _parseSession(json);
+    final session = _parseSession(_decodeBody(response));
     _session.store(session);
     return session;
   }
@@ -61,6 +59,19 @@ class HttpAuthService implements AuthService {
   Uri _resolve(String path) {
     final base = Uri.parse(_config.baseUrl);
     return base.replace(path: '${base.path}$path');
+  }
+
+  Map<String, dynamic> _decodeBody(http.Response response) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    } on FormatException {
+      throw const AuthException('Unexpected response from sign-in server.');
+    }
+    if (decoded is! Map<String, dynamic>) {
+      throw const AuthException('Unexpected response from sign-in server.');
+    }
+    return decoded;
   }
 
   void _throwForStatus(http.Response response) {

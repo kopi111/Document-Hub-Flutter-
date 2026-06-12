@@ -601,21 +601,27 @@ class _VehicleThumbnail extends StatelessWidget {
 
   Widget? _imageProvider(Uint8List? bytes, String? url) {
     if (bytes != null && bytes.isNotEmpty) {
-      return Image.memory(bytes, fit: BoxFit.cover);
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        errorBuilder: (_, _, _) => _vehicleIcon(),
+      );
     }
     if (url != null && url.isNotEmpty) {
       return CachedNetworkImage(
         imageUrl: url,
         fit: BoxFit.cover,
-        errorWidget: (_, _, _) => Icon(
-          _iconFor(vehicle),
-          color: _tintFor(vehicle).foreground,
-          size: size * 0.42,
-        ),
+        errorWidget: (_, _, _) => _vehicleIcon(),
       );
     }
     return null;
   }
+
+  Widget _vehicleIcon() => Icon(
+        _iconFor(vehicle),
+        color: _tintFor(vehicle).foreground,
+        size: size * 0.42,
+      );
 }
 
 class _StatusChip extends StatelessWidget {

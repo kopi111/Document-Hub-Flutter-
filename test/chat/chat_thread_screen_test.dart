@@ -2,6 +2,7 @@ import 'package:document_hub/models/chat/chat_contact.dart';
 import 'package:document_hub/models/chat/chat_conversation.dart';
 import 'package:document_hub/models/chat/chat_message.dart';
 import 'package:document_hub/screens/chat/chat_thread_screen.dart';
+import 'package:document_hub/widgets/chat/presence_subtitle.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -84,12 +85,14 @@ void main() {
       expect(find.text('Owen Clarke'), findsOneWidget);
     });
 
-    testWidgets('rank and station subtitle appears in the app bar',
-        (tester) async {
+    testWidgets('a presence subtitle appears in the app bar', (tester) async {
       await tester.pumpWidget(_buildTestApp(_buildConversation()));
       await tester.pumpAndSettle();
 
-      expect(find.text('Corporal · Half-Way Tree'), findsOneWidget);
+      // The app bar now renders a PresenceSubtitle. The fixture contact is
+      // neither online nor has a lastSeen, so the label is "last seen recently".
+      expect(find.byType(PresenceSubtitle), findsOneWidget);
+      expect(find.text('last seen recently'), findsOneWidget);
     });
   });
 
@@ -101,11 +104,18 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
     });
 
-    testWidgets('send icon is present', (tester) async {
+    testWidgets('send icon appears once the input has text', (tester) async {
       await tester.pumpWidget(_buildTestApp(_buildConversation()));
       await tester.pumpAndSettle();
 
-      // _SendButton wraps Icons.send_rounded inside a GestureDetector.
+      // Empty input shows the voice button; the send button only appears
+      // after the user types.
+      expect(find.byIcon(Icons.send_rounded), findsNothing);
+      expect(find.byIcon(Icons.mic), findsOneWidget);
+
+      await tester.enterText(find.byType(TextField), 'Standing by.');
+      await tester.pumpAndSettle();
+
       expect(find.byIcon(Icons.send_rounded), findsOneWidget);
     });
   });
@@ -180,8 +190,8 @@ void main() {
     });
 
     testWidgets(
-        'tapping send with an empty input does NOT add a blank message'
-        ' (guard behaviour — _sendMessage returns early when text is empty)',
+        'an empty input shows the voice button instead of send, so no blank '
+        'message can be added (structural guard)',
         (tester) async {
       final conversation = _buildConversation();
       final initialCount = conversation.messages.length;
@@ -189,18 +199,14 @@ void main() {
       await tester.pumpWidget(_buildTestApp(conversation));
       await tester.pumpAndSettle();
 
-      // Ensure the field is empty, then tap send.
       final textField = tester.widget<TextField>(find.byType(TextField));
       expect(textField.controller!.text, isEmpty);
 
-      await tester.tap(find.byIcon(Icons.send_rounded));
-      await tester.pumpAndSettle();
-
-      // Message list must be unchanged.
-      expect(conversation.messages.length, initialCount,
-          reason:
-              '_sendMessage guards against empty input; no blank bubble '
-              'should be added');
+      // With no text there is no send affordance at all — the voice button
+      // is shown — so a blank message is impossible to send.
+      expect(find.byIcon(Icons.send_rounded), findsNothing);
+      expect(find.byIcon(Icons.mic), findsOneWidget);
+      expect(conversation.messages.length, initialCount);
     });
   });
 
@@ -217,11 +223,14 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.send_rounded));
-      await tester.pumpAndSettle();
+      // Pump under the auto-reply delay so the echo is still the last message.
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text(emojiText), findsOneWidget);
       expect(conversation.messages.last.text, emojiText,
           reason: 'Emoji must survive the send path byte-for-byte');
+
+      await tester.pumpAndSettle();
     });
 
     testWidgets(
@@ -300,10 +309,14 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.tap(find.byIcon(Icons.send_rounded));
-      await tester.pumpAndSettle();
+      // Pump under the auto-reply delay so only the first (outgoing) bubble
+      // exists.
+      await tester.pump(const Duration(milliseconds: 200));
 
       expect(find.text(firstMessage), findsOneWidget);
       expect(emptyConversation.messages.length, 1);
+
+      await tester.pumpAndSettle();
     });
   });
 }

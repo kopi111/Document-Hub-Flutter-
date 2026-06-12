@@ -583,7 +583,13 @@ class _PersonPhoto extends StatelessWidget {
   Widget _image() {
     final bytes = person.photoBytes;
     if (bytes != null) {
-      return Image.memory(bytes, fit: BoxFit.cover, width: size, height: size);
+      return Image.memory(
+        bytes,
+        fit: BoxFit.cover,
+        width: size,
+        height: size,
+        errorBuilder: (context, error, stackTrace) => _fallback(),
+      );
     }
     final url = person.photoUrl;
     if (url != null && url.isNotEmpty) {
