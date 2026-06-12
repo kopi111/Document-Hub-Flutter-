@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../screens/about_screen.dart';
 import '../screens/calendar/calendar_screen.dart';
-import '../screens/chat/chat_list_screen.dart';
+import '../screens/chat/chat_gate.dart';
 import '../screens/directory/directory_screen.dart';
 import '../screens/email/email_login_screen.dart';
 import '../screens/home_screen.dart';
@@ -65,7 +65,7 @@ class AppDrawer extends StatelessWidget {
             _Entry(
               icon: Icons.forum_outlined,
               label: 'Chat',
-              screen: const ChatListScreen(),
+              screen: const ChatGate(),
             ),
             const Divider(),
             const _SectionLabel('Western Operations'),

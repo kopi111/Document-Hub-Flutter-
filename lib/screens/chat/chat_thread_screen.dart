@@ -4,14 +4,38 @@ import 'package:flutter/material.dart';
 
 import '../../models/chat/chat_conversation.dart';
 import '../../models/chat/chat_message.dart';
-import 'chat_style.dart';
+import '../../models/chat/message_type.dart';
+import '../../services/chat/chat_repository.dart';
+import '../../services/chat/disappearing_sweeper.dart';
+import '../../services/chat/file_attachment_picker.dart';
+import '../../services/chat/image_attachment_picker.dart';
+import '../../services/chat/voice_recorder.dart';
+import '../../widgets/chat/attachment_menu.dart';
+import '../../widgets/chat/disappearing_timer_menu.dart';
+import '../../widgets/chat/in_chat_search_bar.dart';
+import '../../widgets/chat/message_bubble.dart';
+import '../../widgets/chat/pinned_message_banner.dart';
+import '../../widgets/chat/presence_subtitle.dart';
+import '../../widgets/chat/reply_compose_bar.dart';
+import '../../widgets/chat/typing_indicator.dart';
+import '../../widgets/chat/voice_record_button.dart';
 import 'chat_presence.dart';
+import 'chat_style.dart';
+import 'chat_thread_controller.dart';
 import 'chat_wallpaper.dart';
 
 class ChatThreadScreen extends StatefulWidget {
-  const ChatThreadScreen({super.key, required this.conversation});
+  const ChatThreadScreen({
+    super.key,
+    required this.conversation,
+    this.repository,
+  });
 
   final ChatConversation conversation;
+
+  /// Live backend for this thread. When present the thread sends through and
+  /// polls the API; when null it runs the in-memory demo with canned replies.
+  final ChatRepository? repository;
 
   @override
   State<ChatThreadScreen> createState() => _ChatThreadScreenState();
@@ -27,138 +51,250 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     'On it — give me a few minutes.',
   ];
 
-  final TextEditingController _inputController = TextEditingController();
-  final ScrollController _scrollController = ScrollController();
+  final TextEditingController _input = TextEditingController();
+  final ScrollController _scroll = ScrollController();
+  final ImageAttachmentPicker _imagePicker = const StubImageAttachmentPicker();
+  final FileAttachmentPicker _filePicker = const StubFileAttachmentPicker();
+  final VoiceRecorder _voiceRecorder = StubVoiceRecorder();
+  final Map<String, GlobalKey> _messageKeys = {};
+
+  late final ChatThreadController _controller;
+  late final DisappearingSweeper _sweeper;
+
+  static const Duration _pollInterval = Duration(seconds: 3);
 
   Timer? _replyTimer;
-  bool _isContactTyping = false;
-  String? _typingName;
+  Timer? _pollTimer;
+  bool _peerIsTyping = false;
+  String? _typingPeerName;
+  bool _isSearching = false;
+  String _searchQuery = '';
+  String? _editingMessageId;
 
   ChatConversation get _conversation => widget.conversation;
-  List<ChatMessage> get _messages => _conversation.messages;
 
   @override
   void initState() {
     super.initState();
-    // Opening the thread clears its unread count and lands on the newest message.
-    _conversation.markRead();
+    _controller = ChatThreadController(
+      _conversation,
+      repository: widget.repository,
+    );
+    _controller.addListener(_onControllerChanged);
+    _sweeper = DisappearingSweeper(controller: _controller);
+    _sweeper.start();
+    _controller.markThreadRead();
+    _startServerSync();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  void _startServerSync() {
+    if (!_controller.isBackedByServer) return;
+    _controller.syncFromServer();
+    _pollTimer = Timer.periodic(
+      _pollInterval,
+      (_) => _controller.syncFromServer(),
+    );
   }
 
   @override
   void dispose() {
     _replyTimer?.cancel();
-    _inputController.dispose();
-    _scrollController.dispose();
+    _pollTimer?.cancel();
+    _sweeper.stop();
+    _controller.removeListener(_onControllerChanged);
+    _controller.dispose();
+    _input.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
-    final text = _inputController.text.trim();
+  void _onControllerChanged() {
+    if (!mounted) return;
+    _syncComposerWithEditing();
+    setState(() {});
+  }
+
+  void _syncComposerWithEditing() {
+    final editing = _controller.editing;
+    if (editing?.id == _editingMessageId) return;
+    _editingMessageId = editing?.id;
+    if (editing != null) {
+      _input.text = editing.text;
+      _input.selection = TextSelection.collapsed(offset: _input.text.length);
+    }
+  }
+
+  // --- Sending and the simulated peer --------------------------------------
+
+  void _submitInput() {
+    final text = _input.text.trim();
     if (text.isEmpty) return;
 
-    final outgoing = ChatMessage(
-      id: 'msg-sent-${DateTime.now().millisecondsSinceEpoch}',
-      text: text,
-      sentAt: DateTime.now(),
-      fromMe: true,
-      status: MessageStatus.sent,
-    );
+    final editing = _controller.editing;
+    if (editing != null) {
+      _controller.applyEdit(editing.id, text);
+      _input.clear();
+      return;
+    }
 
-    setState(() {
-      _messages.add(outgoing);
-      _inputController.clear();
-    });
-
+    _controller.sendText(text);
+    _input.clear();
     WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
     _scheduleAutoReply();
   }
 
   void _scheduleAutoReply() {
+    if (_controller.isBackedByServer) return;
     _replyTimer?.cancel();
     final replier = _nextReplier();
     setState(() {
-      _isContactTyping = true;
-      _typingName = replier;
+      _peerIsTyping = true;
+      _typingPeerName = _conversation.isGroup ? replier : null;
     });
-    _replyTimer = Timer(const Duration(milliseconds: 1600), () {
-      if (!mounted) return;
-      setState(() {
-        _isContactTyping = false;
-        _markMyMessagesRead();
-        _messages.add(
-          ChatMessage(
-            id: 'msg-reply-${DateTime.now().millisecondsSinceEpoch}',
-            text: _nextReply(),
-            sentAt: DateTime.now(),
-            fromMe: false,
-            senderName: _conversation.isGroup ? replier : null,
-          ),
-        );
-        // The user is viewing the thread, so the reply is already seen.
-        _conversation.markRead();
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
-    });
+    _replyTimer = Timer(const Duration(milliseconds: 1600), _deliverAutoReply);
   }
 
-  /// The officer who will reply next. In a group this rotates through the
-  /// members so different names appear; in a one-to-one it is the contact.
+  void _deliverAutoReply() {
+    if (!mounted) return;
+    setState(() => _peerIsTyping = false);
+    _controller.markMyMessagesRead();
+    _controller.receive(_buildAutoReply());
+    _controller.markThreadRead();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
+  ChatMessage _buildAutoReply() {
+    final replier = _nextReplier();
+    return ChatMessage(
+      id: 'msg-reply-${DateTime.now().millisecondsSinceEpoch}',
+      conversationId: _conversation.id,
+      text: _nextReply(),
+      sentAt: DateTime.now(),
+      fromMe: false,
+      senderName: _conversation.isGroup ? replier : null,
+    );
+  }
+
   String _nextReplier() {
     if (!_conversation.isGroup) return _conversation.contact.name;
     final members = _conversation.group!.members;
     if (members.isEmpty) return _conversation.contact.name;
-    final replyCount = _messages.where((message) => !message.fromMe).length;
-    return members[replyCount % members.length].name;
+    final inbound = _controller.messages.where((m) => !m.fromMe).length;
+    return members[inbound % members.length].name;
   }
 
   String _nextReply() {
-    final replyCount = _messages.where((message) => !message.fromMe).length;
-    return _cannedReplies[replyCount % _cannedReplies.length];
+    final inbound = _controller.messages.where((m) => !m.fromMe).length;
+    return _cannedReplies[inbound % _cannedReplies.length];
   }
 
-  /// Promotes every message the user sent to "read" once the contact responds,
-  /// turning the ticks blue like WhatsApp.
-  void _markMyMessagesRead() {
-    for (var i = 0; i < _messages.length; i++) {
-      final message = _messages[i];
-      if (message.fromMe && message.status != MessageStatus.read) {
-        _messages[i] = message.copyWith(status: MessageStatus.read);
-      }
-    }
+  // --- Attachments ---------------------------------------------------------
+
+  void _openAttachmentMenu() {
+    AttachmentMenu.show(
+      context,
+      onPhoto: _attachGalleryPhoto,
+      onCamera: _attachCameraPhoto,
+      onFile: _attachFile,
+      onLocation: _attachLocation,
+    );
+  }
+
+  Future<void> _attachGalleryPhoto() async {
+    final attachment = await _imagePicker.pickFromGallery();
+    if (attachment == null) return;
+    _controller.sendAttachment(attachment, type: MessageType.image);
+    _afterAttachment();
+  }
+
+  Future<void> _attachCameraPhoto() async {
+    final attachment = await _imagePicker.captureFromCamera();
+    if (attachment == null) return;
+    _controller.sendAttachment(attachment, type: MessageType.image);
+    _afterAttachment();
+  }
+
+  Future<void> _attachFile() async {
+    final attachment = await _filePicker.pickFile();
+    if (attachment == null) return;
+    _controller.sendAttachment(attachment, type: MessageType.file);
+    _afterAttachment();
+  }
+
+  void _attachLocation() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Location sharing is not available yet.')),
+    );
+  }
+
+  void _afterAttachment() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+    _scheduleAutoReply();
+  }
+
+  // --- Search and navigation ----------------------------------------------
+
+  void _openSearch() => setState(() => _isSearching = true);
+
+  void _closeSearch() {
+    setState(() {
+      _isSearching = false;
+      _searchQuery = '';
+    });
+  }
+
+  void _onSearchQueryChanged(String query) =>
+      setState(() => _searchQuery = query);
+
+  void _jumpToIndex(int index) {
+    final messages = _controller.messages;
+    if (index < 0 || index >= messages.length) return;
+    _scrollToMessage(messages[index].id);
+  }
+
+  void _scrollToMessage(String messageId) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final key = _messageKeys[messageId];
+      final target = key?.currentContext;
+      if (target == null) return;
+      Scrollable.ensureVisible(
+        target,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeInOut,
+        alignment: 0.3,
+      );
+    });
   }
 
   void _scrollToBottom() {
-    if (!_scrollController.hasClients) return;
-    _scrollController.animateTo(
-      _scrollController.position.maxScrollExtent,
+    if (!_scroll.hasClients) return;
+    _scroll.animateTo(
+      _scroll.position.maxScrollExtent,
       duration: const Duration(milliseconds: 280),
       curve: Curves.easeOut,
     );
   }
+
+  // --- Build ---------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     return Theme(
       data: ChatStyle.theme(),
       child: Scaffold(
-        appBar: _buildAppBar(),
+        appBar: _isSearching ? _buildSearchBar() : _buildAppBar(),
         body: ChatWallpaper(
           child: Column(
             children: [
-              Expanded(
-                child: _MessageList(
-                  messages: _messages,
-                  isGroup: _conversation.isGroup,
-                  scrollController: _scrollController,
-                ),
+              PinnedMessageBanner(
+                controller: _controller,
+                onJumpTo: _scrollToMessage,
               ),
-              if (_isContactTyping)
-                _TypingIndicator(name: _typingName ?? _conversation.title),
-              _MessageInputRow(
-                controller: _inputController,
-                onSend: _sendMessage,
-              ),
+              Expanded(child: _buildMessageList()),
+              if (_peerIsTyping) _buildTypingRow(),
+              ReplyComposeBar(controller: _controller),
+              _buildComposer(),
             ],
           ),
         ),
@@ -166,7 +302,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     );
   }
 
-  AppBar _buildAppBar() {
+  PreferredSizeWidget _buildSearchBar() {
+    return InChatSearchBar(
+      controller: _controller,
+      onJumpTo: _jumpToIndex,
+      onClose: _closeSearch,
+      onQueryChanged: _onSearchQueryChanged,
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar() {
     return AppBar(
       titleSpacing: 0,
       title: Row(
@@ -194,59 +339,48 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                Text(
-                  _isContactTyping ? 'typing…' : _conversation.subtitle,
-                  style: ChatStyle.body(
-                    size: 12,
-                    color: Colors.white.withValues(alpha: 0.85),
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                PresenceSubtitle(
+                  contact: _conversation.contact,
+                  isTyping: _peerIsTyping,
                 ),
               ],
             ),
           ),
         ],
       ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.search_rounded),
+          tooltip: 'Search messages',
+          onPressed: _openSearch,
+        ),
+        _buildOverflowMenu(),
+      ],
     );
   }
 
-}
-
-class _TypingIndicator extends StatelessWidget {
-  const _TypingIndicator({required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(
-        horizontal: ChatStyle.pageInset,
-        vertical: 6,
-      ),
-      child: Text(
-        '$name is typing…',
-        style: ChatStyle.body(size: 12, color: ChatStyle.textSecondary),
-      ),
+  Widget _buildOverflowMenu() {
+    return PopupMenuButton<_ThreadMenuAction>(
+      icon: const Icon(Icons.more_vert_rounded),
+      onSelected: _onMenuAction,
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: _ThreadMenuAction.disappearing,
+          child: Text('Disappearing messages'),
+        ),
+      ],
     );
   }
-}
 
-class _MessageList extends StatelessWidget {
-  const _MessageList({
-    required this.messages,
-    required this.isGroup,
-    required this.scrollController,
-  });
+  void _onMenuAction(_ThreadMenuAction action) {
+    switch (action) {
+      case _ThreadMenuAction.disappearing:
+        DisappearingTimerMenu.show(context, _controller);
+    }
+  }
 
-  final List<ChatMessage> messages;
-  final bool isGroup;
-  final ScrollController scrollController;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildMessageList() {
+    final messages = _controller.messages;
     if (messages.isEmpty) {
       return Center(
         child: Text(
@@ -257,234 +391,43 @@ class _MessageList extends StatelessWidget {
       );
     }
     return ListView.builder(
-      controller: scrollController,
+      controller: _scroll,
+      clipBehavior: Clip.none,
       padding: const EdgeInsets.symmetric(
         horizontal: ChatStyle.pageInset,
         vertical: 12,
       ),
       itemCount: messages.length,
-      itemBuilder: (context, index) => _MessageBubble(
-        message: messages[index],
-        precedingMessage: index > 0 ? messages[index - 1] : null,
-        isGroup: isGroup,
-      ),
-    );
-  }
-}
-
-class _MessageBubble extends StatelessWidget {
-  const _MessageBubble({
-    required this.message,
-    required this.isGroup,
-    this.precedingMessage,
-  });
-
-  final ChatMessage message;
-  final ChatMessage? precedingMessage;
-  final bool isGroup;
-
-  @override
-  Widget build(BuildContext context) {
-    final showTimestamp = _shouldShowTimestamp();
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        if (showTimestamp) _TimestampLabel(sentAt: message.sentAt),
-        Align(
-          alignment:
-              message.fromMe ? Alignment.centerRight : Alignment.centerLeft,
-          child: _BubbleBody(message: message, isGroup: isGroup),
-        ),
-        const SizedBox(height: 4),
-      ],
-    );
-  }
-
-  bool _shouldShowTimestamp() {
-    if (precedingMessage == null) return true;
-    final gap = message.sentAt.difference(precedingMessage!.sentAt);
-    return gap.inMinutes >= 10;
-  }
-}
-
-class _BubbleBody extends StatelessWidget {
-  const _BubbleBody({required this.message, required this.isGroup});
-
-  final ChatMessage message;
-  final bool isGroup;
-
-  static const List<Color> _senderPalette = [
-    Color(0xFF53BDEB),
-    Color(0xFF7FD06B),
-    Color(0xFFE07C68),
-    Color(0xFFC58AF0),
-    Color(0xFFF0B05A),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final backgroundColor =
-        message.fromMe ? ChatStyle.outgoingBubble : ChatStyle.incomingBubble;
-
-    const textColor = ChatStyle.textPrimary;
-
-    final borderRadius = BorderRadius.only(
-      topLeft: const Radius.circular(ChatStyle.bubbleRadius),
-      topRight: const Radius.circular(ChatStyle.bubbleRadius),
-      bottomLeft: Radius.circular(message.fromMe ? ChatStyle.bubbleRadius : 4),
-      bottomRight: Radius.circular(message.fromMe ? 4 : ChatStyle.bubbleRadius),
-    );
-
-    final showSender =
-        isGroup && !message.fromMe && message.senderName != null;
-
-    return Container(
-      constraints: BoxConstraints(
-        maxWidth: MediaQuery.of(context).size.width * 0.72,
-      ),
-      padding: const EdgeInsets.fromLTRB(10, 6, 10, 5),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 3,
-            offset: const Offset(0, 1),
+      itemBuilder: (context, index) {
+        final message = messages[index];
+        return KeyedSubtree(
+          key: _keyFor(message.id),
+          child: MessageBubble(
+            message: message,
+            conversation: _conversation,
+            controller: _controller,
+            searchQuery: _searchQuery,
+            onJumpToMessage: _scrollToMessage,
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (showSender)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 3),
-              child: Text(
-                message.senderName!,
-                style: ChatStyle.title(
-                  size: 12,
-                  weight: FontWeight.w700,
-                  color: _senderColor(message.senderName!),
-                ),
-              ),
-            ),
-          Text(
-            message.text,
-            style: ChatStyle.body(size: 14, color: textColor),
-          ),
-          const SizedBox(height: 3),
-          _BubbleFooter(message: message),
-        ],
+        );
+      },
+    );
+  }
+
+  GlobalKey _keyFor(String messageId) =>
+      _messageKeys.putIfAbsent(messageId, GlobalKey.new);
+
+  Widget _buildTypingRow() {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(ChatStyle.pageInset, 0, 64, 6),
+        child: TypingIndicator(typistName: _typingPeerName),
       ),
     );
   }
 
-  Color _senderColor(String name) =>
-      _senderPalette[name.hashCode.abs() % _senderPalette.length];
-}
-
-/// Time and, for outbound messages, the WhatsApp-style delivery ticks.
-class _BubbleFooter extends StatelessWidget {
-  const _BubbleFooter({required this.message});
-
-  final ChatMessage message;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      mainAxisAlignment: MainAxisAlignment.end,
-      children: [
-        Text(
-          _formatTime(message.sentAt),
-          style: ChatStyle.mono(
-            size: 9,
-            color: ChatStyle.textSecondary,
-            letterSpacing: 0.5,
-          ),
-        ),
-        if (message.fromMe) ...[
-          const SizedBox(width: 4),
-          _StatusTicks(status: message.status),
-        ],
-      ],
-    );
-  }
-
-  String _formatTime(DateTime sentAt) {
-    final h = sentAt.hour.toString().padLeft(2, '0');
-    final m = sentAt.minute.toString().padLeft(2, '0');
-    return '$h:$m';
-  }
-}
-
-class _StatusTicks extends StatelessWidget {
-  const _StatusTicks({required this.status});
-
-  final MessageStatus status;
-
-  @override
-  Widget build(BuildContext context) {
-    final isRead = status == MessageStatus.read;
-    final icon =
-        status == MessageStatus.sent ? Icons.check_rounded : Icons.done_all_rounded;
-    final color = isRead ? ChatStyle.readTick : ChatStyle.textSecondary;
-    return Icon(icon, size: 15, color: color);
-  }
-}
-
-class _TimestampLabel extends StatelessWidget {
-  const _TimestampLabel({required this.sentAt});
-
-  final DateTime sentAt;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: Colors.black.withValues(alpha: 0.22),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Text(
-            _formatTimestamp(sentAt),
-            style: ChatStyle.mono(
-              size: 10,
-              color: Colors.white,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _formatTimestamp(DateTime dt) {
-    final y = dt.year.toString().padLeft(4, '0');
-    final mo = dt.month.toString().padLeft(2, '0');
-    final d = dt.day.toString().padLeft(2, '0');
-    final h = dt.hour.toString().padLeft(2, '0');
-    final mi = dt.minute.toString().padLeft(2, '0');
-    return '$y-$mo-$d $h:$mi';
-  }
-}
-
-class _MessageInputRow extends StatelessWidget {
-  const _MessageInputRow({
-    required this.controller,
-    required this.onSend,
-  });
-
-  final TextEditingController controller;
-  final VoidCallback onSend;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildComposer() {
     return Container(
       padding: EdgeInsets.fromLTRB(
         ChatStyle.pageInset,
@@ -497,82 +440,107 @@ class _MessageInputRow extends StatelessWidget {
         border: Border(top: BorderSide(color: ChatStyle.hairline, width: 1)),
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Expanded(
-            child: TextField(
-              controller: controller,
-              style: ChatStyle.body(size: 14, color: ChatStyle.textPrimary),
-              maxLines: 5,
-              minLines: 1,
-              keyboardType: TextInputType.multiline,
-              textInputAction: TextInputAction.newline,
-              textCapitalization: TextCapitalization.sentences,
-              decoration: InputDecoration(
-                hintText: 'Type a message…',
-                hintStyle:
-                    ChatStyle.body(size: 14, color: ChatStyle.textSecondary),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                filled: true,
-                fillColor: ChatStyle.background,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(ChatStyle.cardRadius),
-                  borderSide: BorderSide(color: ChatStyle.hairline),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(ChatStyle.cardRadius),
-                  borderSide: BorderSide(color: ChatStyle.hairline),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(ChatStyle.cardRadius),
-                  borderSide: BorderSide(color: ChatStyle.gold, width: 1.5),
-                ),
-              ),
-            ),
-          ),
+          _AttachButton(onPressed: _openAttachmentMenu),
+          const SizedBox(width: 6),
+          Expanded(child: _buildInputField()),
           const SizedBox(width: 10),
-          _SendButton(controller: controller, onPressed: onSend),
+          _buildTrailingAction(),
         ],
       ),
+    );
+  }
+
+  Widget _buildInputField() {
+    final editing = _controller.editing != null;
+    return TextField(
+      controller: _input,
+      style: ChatStyle.body(size: 14, color: ChatStyle.textPrimary),
+      maxLines: 5,
+      minLines: 1,
+      keyboardType: TextInputType.multiline,
+      textInputAction: TextInputAction.newline,
+      textCapitalization: TextCapitalization.sentences,
+      decoration: InputDecoration(
+        hintText: editing ? 'Edit message…' : 'Type a message…',
+        hintStyle: ChatStyle.body(size: 14, color: ChatStyle.textSecondary),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        filled: true,
+        fillColor: ChatStyle.background,
+        border: _inputBorder(ChatStyle.hairline),
+        enabledBorder: _inputBorder(ChatStyle.hairline),
+        focusedBorder: _inputBorder(ChatStyle.gold, width: 1.5),
+      ),
+    );
+  }
+
+  OutlineInputBorder _inputBorder(Color color, {double width = 1}) {
+    return OutlineInputBorder(
+      borderRadius: BorderRadius.circular(ChatStyle.cardRadius),
+      borderSide: BorderSide(color: color, width: width),
+    );
+  }
+
+  Widget _buildTrailingAction() {
+    return ValueListenableBuilder<TextEditingValue>(
+      valueListenable: _input,
+      builder: (context, value, _) {
+        final hasText = value.text.trim().isNotEmpty;
+        if (hasText || _controller.editing != null) {
+          return _SendButton(onPressed: _submitInput);
+        }
+        return VoiceRecordButton(
+          controller: _controller,
+          recorder: _voiceRecorder,
+        );
+      },
+    );
+  }
+}
+
+enum _ThreadMenuAction { disappearing }
+
+class _AttachButton extends StatelessWidget {
+  const _AttachButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: const Icon(Icons.add_circle_outline_rounded),
+      color: ChatStyle.textSecondary,
+      tooltip: 'Attach',
+      onPressed: onPressed,
     );
   }
 }
 
 class _SendButton extends StatelessWidget {
-  const _SendButton({required this.controller, required this.onPressed});
+  const _SendButton({required this.onPressed});
 
-  final TextEditingController controller;
   final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<TextEditingValue>(
-      valueListenable: controller,
-      builder: (context, value, _) {
-        final enabled = value.text.trim().isNotEmpty;
-        return Semantics(
-          button: true,
-          enabled: enabled,
-          label: 'Send message',
-          child: Material(
-            color: enabled ? ChatStyle.gold : ChatStyle.hairline,
-            shape: const CircleBorder(),
-            child: InkWell(
-              customBorder: const CircleBorder(),
-              onTap: enabled ? onPressed : null,
-              child: SizedBox(
-                width: 44,
-                height: 44,
-                child: Icon(
-                  Icons.send_rounded,
-                  color: enabled ? ChatStyle.onGold : ChatStyle.textSecondary,
-                  size: 20,
-                ),
-              ),
-            ),
+    return Semantics(
+      button: true,
+      label: 'Send message',
+      child: Material(
+        color: ChatStyle.gold,
+        shape: const CircleBorder(),
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onPressed,
+          child: const SizedBox(
+            width: 44,
+            height: 44,
+            child: Icon(Icons.send_rounded, color: ChatStyle.onGold, size: 20),
           ),
-        );
-      },
+        ),
+      ),
     );
   }
 }

@@ -54,7 +54,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (_) => ChatThreadScreen(conversation: conversation),
+        builder: (_) => ChatThreadScreen(
+          conversation: conversation,
+          repository: _repository,
+        ),
       ),
     );
     if (!mounted) return;
@@ -165,7 +168,7 @@ class _ConversationTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final last = conversation.lastMessage;
-    final hasMessages = last.text.isNotEmpty;
+    final hasMessages = last != null && last.text.isNotEmpty;
     final unread = conversation.unreadCount;
 
     return InkWell(

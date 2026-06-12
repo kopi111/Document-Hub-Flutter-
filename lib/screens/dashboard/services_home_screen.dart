@@ -10,7 +10,10 @@ import '../../widgets/hub/hub_service_tile.dart';
 import '../../widgets/notifications_bell.dart';
 import '../about_screen.dart';
 import '../calendar/calendar_screen.dart';
+import '../chat/chat_gate.dart';
+import '../directory/directory_screen.dart';
 import '../documents/documents_home_screen.dart';
+import '../email/email_login_screen.dart';
 import '../map/map_screen.dart';
 import '../news/news_feed_screen.dart';
 import '../notes/notes_screen.dart';
@@ -24,7 +27,8 @@ const String _emergencyNumber = '119';
 
 /// Redesigned home: gradient header, welcome hero, colour-coded service grid,
 /// an awareness banner, and a dark bottom bar with a centred emergency-call
-/// button. Communications tools (Directory, Email, Chat) live in the drawer.
+/// button. Communications tools (Directory, Chat, Email) also appear in the
+/// drawer.
 class ServicesHomeScreen extends StatefulWidget {
   const ServicesHomeScreen({super.key});
 
@@ -49,6 +53,9 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
   void _openCalendar() => _open(const CalendarScreen());
   void _openNotes() => _open(const NotesScreen());
   void _openMap() => _open(const MapScreen());
+  void _openDirectory() => _open(const DirectoryScreen());
+  void _openChat() => _open(const ChatGate());
+  void _openEmail() => _open(const EmailLoginScreen());
   void _openAbout() => _open(const AboutScreen());
   void _openNotifications() => _open(const NotificationsScreen());
   void _openMenu() => _scaffoldKey.currentState?.openDrawer();
@@ -142,6 +149,24 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
           label: 'Map',
           tint: HubTint.purple,
           onTap: _openMap,
+        ),
+        _ServiceTileData(
+          icon: Icons.contact_phone,
+          label: 'Directory',
+          tint: HubTint.green,
+          onTap: _openDirectory,
+        ),
+        _ServiceTileData(
+          icon: Icons.forum,
+          label: 'Chat',
+          tint: HubTint.blue,
+          onTap: _openChat,
+        ),
+        _ServiceTileData(
+          icon: Icons.email,
+          label: 'Email',
+          tint: HubTint.red,
+          onTap: _openEmail,
         ),
       ];
 

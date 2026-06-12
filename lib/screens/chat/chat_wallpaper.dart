@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'chat_style.dart';
 
-/// Telegram-style chat wallpaper: a soft teal gradient overlaid with a faint
-/// tiled doodle pattern, sitting behind the message bubbles.
+/// Telegram-style chat wallpaper: a light blue gradient overlaid with a faint
+/// tiled bubble/dot pattern, sitting behind the message bubbles.
 class ChatWallpaper extends StatelessWidget {
   const ChatWallpaper({super.key, required this.child});
 
@@ -52,37 +52,14 @@ class _WallpaperPainter extends CustomPainter {
   void _drawGlyph(Canvas canvas, Offset center, int variant, Paint paint) {
     switch (variant) {
       case 0:
-        _heart(canvas, center, paint);
+        canvas.drawCircle(center, 7, paint);
       case 1:
-        canvas.drawCircle(center, 8, paint);
+        canvas.drawCircle(center, 4, paint);
       case 2:
-        _star(canvas, center, paint);
+        canvas.drawCircle(center, 10, paint);
       default:
-        final rect = Rect.fromCenter(center: center, width: 14, height: 14);
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(4)),
-          paint,
-        );
+        canvas.drawCircle(center, 5, paint);
     }
-  }
-
-  void _heart(Canvas canvas, Offset c, Paint paint) {
-    final path = Path()
-      ..moveTo(c.dx, c.dy + 7)
-      ..cubicTo(c.dx - 12, c.dy - 4, c.dx - 5, c.dy - 10, c.dx, c.dy - 4)
-      ..cubicTo(c.dx + 5, c.dy - 10, c.dx + 12, c.dy - 4, c.dx, c.dy + 7)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  void _star(Canvas canvas, Offset c, Paint paint) {
-    const r = 8.0;
-    canvas.drawLine(c.translate(0, -r), c.translate(0, r), paint);
-    canvas.drawLine(c.translate(-r, 0), c.translate(r, 0), paint);
-    canvas.drawLine(c.translate(-r * 0.7, -r * 0.7),
-        c.translate(r * 0.7, r * 0.7), paint);
-    canvas.drawLine(c.translate(r * 0.7, -r * 0.7),
-        c.translate(-r * 0.7, r * 0.7), paint);
   }
 
   @override

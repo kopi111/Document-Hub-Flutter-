@@ -35,8 +35,8 @@ class ChatStyle {
   static const Color readTick = Color(0xFF60B8F0);
 
   // Wallpaper ---------------------------------------------------------------
-  static const Color wallpaperTop = Color(0xFFC6E7D6);
-  static const Color wallpaperBottom = Color(0xFFA8D8C6);
+  static const Color wallpaperTop = Color(0xFFDAEAF7);
+  static const Color wallpaperBottom = Color(0xFFC5DCF0);
   static const Color wallpaperDoodle = Color(0xFFFFFFFF);
 
   // Metrics -----------------------------------------------------------------

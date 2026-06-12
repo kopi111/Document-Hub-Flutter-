@@ -50,3 +50,11 @@ app.*.map.json
 # Recolor swarm run artifacts (worker logs are throwaway)
 tools/run-*/
 tools/.last_run
+
+# Chat swarm artifacts: the Telegram reference clone and throwaway worker logs
+swarm/reference/
+swarm/logs/
+swarm/chat-qa/findings/
+swarm/chat-qa/findings_v*/
+swarm/uat/logs/
+swarm/uat/fix-logs/
