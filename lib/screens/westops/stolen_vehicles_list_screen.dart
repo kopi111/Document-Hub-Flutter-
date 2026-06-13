@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
 import '../../models/westops/stolen_vehicle.dart';
+import '../../services/westops/seen_records_store.dart';
 import '../../services/westops/stolen_vehicles_repository.dart';
 import '../../theme/hub_style.dart';
 import '../../widgets/editorial/shared_axis_route.dart';
@@ -81,7 +82,7 @@ class StolenVehiclesListScreen extends StatefulWidget {
 
 class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
   late final StolenVehiclesRepository _repository =
-      widget.repository ?? const InMemoryStolenVehiclesRepository();
+      widget.repository ?? createStolenVehiclesRepository();
   final TextEditingController _searchController = TextEditingController();
 
   List<StolenVehicle> _all = [];
@@ -95,7 +96,13 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
   @override
   void initState() {
     super.initState();
+    SeenRecordsStore.instance.addListener(_onSeenChanged);
+    SeenRecordsStore.instance.ensureLoaded();
     _loadRecords();
+  }
+
+  void _onSeenChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadRecords() async {
@@ -167,6 +174,7 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
       setState(() => _category = _category == value ? null : value);
 
   Future<void> _openDetail(StolenVehicle vehicle) async {
+    SeenRecordsStore.instance.markSeen(vehicle.id);
     await Navigator.push(
       context,
       sharedAxis(
@@ -203,6 +211,7 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
 
   @override
   void dispose() {
+    SeenRecordsStore.instance.removeListener(_onSeenChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -376,7 +385,8 @@ class _StolenVehiclesListScreenState extends State<StolenVehiclesListScreen> {
           final vehicle = recent[index];
           return _RecentCard(
             vehicle: vehicle,
-            isNew: vehicle.id == newestId,
+            isNew: vehicle.id == newestId &&
+                !SeenRecordsStore.instance.isSeen(vehicle.id),
             onTap: () => _openDetail(vehicle),
           );
         },

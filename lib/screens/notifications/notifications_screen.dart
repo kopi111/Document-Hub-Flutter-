@@ -6,12 +6,25 @@ import '../../services/news/in_memory_news_repository.dart';
 import '../../services/news/news_repository.dart';
 import '../../services/notifications/app_notifications_store.dart';
 import '../../services/notifications/notifications_service.dart';
+import '../../services/westops/missing_persons_repository.dart';
+import '../../services/westops/stolen_vehicles_repository.dart';
+import '../../services/westops/wanted_persons_repository.dart';
 import '../../theme/hub_style.dart';
 import '../../widgets/hub/hub_filter_pill.dart';
 import '../../widgets/hub/hub_gradient_header.dart';
 import '../../widgets/hub/hub_section_heading.dart';
 import '../../widgets/news/news_date_label.dart';
 import '../news/news_detail_screen.dart';
+import '../news/news_feed_screen.dart';
+import '../westops/missing_detail_screen.dart';
+import '../westops/missing_list_screen.dart';
+import '../westops/stolen_vehicle_detail_screen.dart';
+import '../westops/stolen_vehicles_list_screen.dart';
+import '../westops/wanted_detail_screen.dart';
+import '../westops/wanted_list_screen.dart';
+
+/// Hub blue used to flag the newest, still-unread notification.
+const Color _latestAccent = Color(0xFF2D6CDF);
 
 /// The "Quick Filters" tabs, each derived from real notification fields.
 enum _Filter { all, unread, alerts, updates }
@@ -45,6 +58,12 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   late final NewsRepository _newsRepository =
       widget._newsRepository ?? InMemoryNewsRepository();
+  final WantedPersonsRepository _wantedRepository =
+      createWantedPersonsRepository();
+  final MissingPersonsRepository _missingRepository =
+      createMissingPersonsRepository();
+  final StolenVehiclesRepository _stolenRepository =
+      createStolenVehiclesRepository();
 
   final Set<String> _readIds = <String>{};
 
@@ -101,6 +120,15 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   bool _isUnread(AppNotification notification) =>
       !_readIds.contains(notification.id);
 
+  /// The single most-recent notification — the feed is sorted newest-first, so
+  /// it is the first item. Surfaced with a "NEW" marker so an officer can spot
+  /// the latest bulletin at a glance.
+  String? get _latestId =>
+      _notifications.isEmpty ? null : _notifications.first.id;
+
+  bool _isLatest(AppNotification notification) =>
+      notification.id == _latestId;
+
   bool _isAlert(AppNotification notification) =>
       notification.priority == NewsPriority.urgent ||
       notification.priority == NewsPriority.high;
@@ -134,19 +162,81 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   void _markAllRead() {
-    if (_unreadCount == 0) return;
-    setState(() {
-      _readIds.addAll(_notifications.map((item) => item.id));
-    });
+    if (_notifications.isEmpty) return;
+    AppNotificationsStore.instance.clearAll();
   }
 
   Future<void> _open(AppNotification notification) async {
-    setState(() => _readIds.add(notification.id));
-    final article = notification.sourceArticle;
-    if (article == null) return;
+    // Tapping a notification clears it from the feed (and the bell badge)…
+    AppNotificationsStore.instance.dismiss(notification.id);
+    // …then opens the relevant section for its kind.
+    final destination = await _destinationFor(notification);
+    if (destination == null || !mounted) return;
     await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => NewsDetailScreen(article: article)),
+      MaterialPageRoute(builder: (_) => destination),
     );
+  }
+
+  /// The screen a notification opens when tapped: the specific record for a
+  /// person/vehicle alert that carries its id, the matching WestOps section
+  /// otherwise, and the news feed (or article) for news.
+  Future<Widget?> _destinationFor(AppNotification notification) async {
+    switch (notification.kind) {
+      case NotificationKind.wanted:
+        return _wantedDestination(notification);
+      case NotificationKind.missing:
+        return _missingDestination(notification);
+      case NotificationKind.stolen:
+        return _stolenDestination(notification);
+      case NotificationKind.news:
+        return notification.sourceArticle != null
+            ? NewsDetailScreen(article: notification.sourceArticle!)
+            : NewsFeedScreen(repository: _newsRepository);
+      case NotificationKind.reminder:
+      case NotificationKind.alert:
+      case NotificationKind.email:
+        return null;
+    }
+  }
+
+  /// Opens the exact wanted record the bulletin is about when its id is known,
+  /// falling back to the full list if the id is missing or the record can no
+  /// longer be fetched.
+  Future<Widget> _wantedDestination(AppNotification notification) async {
+    final recordId = notification.sourceRecordId;
+    if (recordId == null) return const WantedListScreen();
+    try {
+      final person = await _wantedRepository.getById(recordId);
+      return WantedDetailScreen(person: person);
+    } catch (_) {
+      return const WantedListScreen();
+    }
+  }
+
+  /// Opens the exact missing-person record the bulletin is about, falling back
+  /// to the full list if the id is missing or the record cannot be fetched.
+  Future<Widget> _missingDestination(AppNotification notification) async {
+    final recordId = notification.sourceRecordId;
+    if (recordId == null) return const MissingListScreen();
+    try {
+      final person = await _missingRepository.getById(recordId);
+      return MissingDetailScreen(person: person);
+    } catch (_) {
+      return const MissingListScreen();
+    }
+  }
+
+  /// Opens the exact stolen-vehicle record the bulletin is about, falling back
+  /// to the full list if the id is missing or the record cannot be fetched.
+  Future<Widget> _stolenDestination(AppNotification notification) async {
+    final recordId = notification.sourceRecordId;
+    if (recordId == null) return const StolenVehiclesListScreen();
+    try {
+      final vehicle = await _stolenRepository.getById(recordId);
+      return StolenVehicleDetailScreen(vehicle: vehicle);
+    } catch (_) {
+      return const StolenVehiclesListScreen();
+    }
   }
 
   void _showPreferencesUnavailable() {
@@ -170,7 +260,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             showBack: true,
             actions: [
               _MarkAllReadButton(
-                enabled: _unreadCount > 0,
+                enabled: _notifications.isNotEmpty,
                 onPressed: _markAllRead,
               ),
             ],
@@ -270,6 +360,10 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     List<AppNotification> unread,
     List<AppNotification> earlier,
   ) {
+    // Alerts already appear under "Priority Alerts"; keep them out of "Unread"
+    // so a single notification is never shown twice.
+    final otherUnread =
+        unread.where((item) => !_isAlert(item)).toList(growable: false);
     return [
       if (alerts.isNotEmpty) ...[
         const Padding(
@@ -282,22 +376,30 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: _PriorityAlertCard(
               notification: item,
+              isLatest: _isLatest(item),
               onTap: () => _open(item),
             ),
           ),
         ),
         const SizedBox(height: 12),
       ],
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: HubSectionHeading(title: 'Unread'),
-      ),
-      const SizedBox(height: 10),
-      if (unread.isEmpty)
-        const _SectionEmpty(message: 'You are all caught up')
-      else
-        ...unread.map(_buildListCard),
-      const SizedBox(height: 12),
+      if (otherUnread.isNotEmpty) ...[
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 16),
+          child: HubSectionHeading(title: 'Unread'),
+        ),
+        const SizedBox(height: 10),
+        ...otherUnread.map(_buildListCard),
+        const SizedBox(height: 12),
+      ] else if (alerts.isEmpty) ...[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: HubSectionHeading(title: 'Unread'),
+        ),
+        const SizedBox(height: 10),
+        const _SectionEmpty(message: 'You are all caught up'),
+        const SizedBox(height: 12),
+      ],
       if (earlier.isNotEmpty) ...[
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 16),
@@ -316,6 +418,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
       child: _NotificationCard(
         notification: notification,
         unread: _isUnread(notification),
+        isLatest: _isLatest(notification),
         onTap: () => _open(notification),
       ),
     );
@@ -504,9 +607,14 @@ class _UnreadBadge extends StatelessWidget {
 }
 
 class _PriorityAlertCard extends StatelessWidget {
-  const _PriorityAlertCard({required this.notification, required this.onTap});
+  const _PriorityAlertCard({
+    required this.notification,
+    required this.isLatest,
+    required this.onTap,
+  });
 
   final AppNotification notification;
+  final bool isLatest;
   final VoidCallback onTap;
 
   @override
@@ -516,6 +624,9 @@ class _PriorityAlertCard extends StatelessWidget {
         color: HubStyle.cardSurface,
         borderRadius: BorderRadius.circular(HubStyle.cardRadius),
         boxShadow: HubStyle.cardShadow,
+        border: isLatest
+            ? Border.all(color: _latestAccent, width: 1.5)
+            : null,
       ),
       child: Material(
         type: MaterialType.transparency,
@@ -558,6 +669,10 @@ class _PriorityAlertCard extends StatelessWidget {
                                 letterSpacing: 0.5,
                               ),
                             ),
+                            if (isLatest) ...[
+                              const SizedBox(width: 8),
+                              const _NewBadge(),
+                            ],
                             const Spacer(),
                             Text(
                               relativePublishedLabel(notification.occurredAt),
@@ -608,11 +723,13 @@ class _NotificationCard extends StatelessWidget {
   const _NotificationCard({
     required this.notification,
     required this.unread,
+    required this.isLatest,
     required this.onTap,
   });
 
   final AppNotification notification;
   final bool unread;
+  final bool isLatest;
   final VoidCallback onTap;
 
   @override
@@ -623,6 +740,9 @@ class _NotificationCard extends StatelessWidget {
         color: HubStyle.cardSurface,
         borderRadius: BorderRadius.circular(HubStyle.cardRadius),
         boxShadow: HubStyle.cardShadow,
+        border: isLatest
+            ? Border.all(color: _latestAccent, width: 1.5)
+            : null,
       ),
       child: Material(
         type: MaterialType.transparency,
@@ -666,13 +786,16 @@ class _NotificationCard extends StatelessWidget {
                               ),
                             ),
                           ),
-                          if (unread) ...[
+                          if (isLatest) ...[
+                            const SizedBox(width: 8),
+                            const _NewBadge(),
+                          ] else if (unread) ...[
                             const SizedBox(width: 8),
                             Container(
                               width: 9,
                               height: 9,
                               decoration: const BoxDecoration(
-                                color: Color(0xFF2D6CDF),
+                                color: _latestAccent,
                                 shape: BoxShape.circle,
                               ),
                             ),
@@ -713,6 +836,30 @@ class _NotificationCard extends StatelessWidget {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NewBadge extends StatelessWidget {
+  const _NewBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: _latestAccent,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: const Text(
+        'NEW',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 9.5,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 0.7,
         ),
       ),
     );

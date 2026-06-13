@@ -37,6 +37,17 @@ class ChatThreadController extends ChangeNotifier {
   /// collisions when several messages are created in the same millisecond.
   int _localSequence = 0;
 
+  /// Whether the other party is currently typing, per the last server sync.
+  bool _peerTyping = false;
+  bool get peerTyping => _peerTyping;
+
+  /// Name to show beside the typing dots in a group thread; null for 1-to-1.
+  String? _typistName;
+  String? get typistName => _typistName;
+
+  /// Last time we told the server the current user is composing, for throttling.
+  DateTime? _lastTypingSentAt;
+
   /// Id of the message currently being replied to, or null. The composer reads
   /// this to show its quoted preview bar.
   ChatMessage? _replyingTo;
@@ -144,7 +155,7 @@ class ChatThreadController extends ChangeNotifier {
     );
     _append(message);
     _replyingTo = null;
-    unawaited(_forwardToServer(message.text));
+    unawaited(_forwardAttachmentToServer(attachment, type, message.text));
     return message;
   }
 
@@ -268,17 +279,61 @@ class ChatThreadController extends ChangeNotifier {
   Future<void> syncFromServer() async {
     final repository = _repository;
     if (repository == null) return;
-    final List<ChatMessage> fetched;
+
+    var changed = false;
+
+    List<ChatMessage>? fetched;
     try {
       fetched = await repository.messagesFor(conversation.id);
     } catch (_) {
+      fetched = null;
+    }
+    if (_disposed) return;
+    if (fetched != null && !_sameMessages(fetched)) {
+      messages
+        ..clear()
+        ..addAll(fetched);
+      changed = true;
+    }
+
+    try {
+      final typing = await repository.fetchTyping(conversation.id);
+      final name = isGroup && typing.usernames.isNotEmpty
+          ? typing.usernames.first
+          : null;
+      if (typing.isTyping != _peerTyping || name != _typistName) {
+        _peerTyping = typing.isTyping;
+        _typistName = name;
+        changed = true;
+      }
+    } catch (_) {
+      // Typing is best-effort; leave the last known state on failure.
+    }
+
+    if (_disposed || !changed) return;
+    _notify();
+  }
+
+  /// Tells the backend the current user is composing. Throttled to one ping per
+  /// few seconds so a burst of keystrokes is a single request. Fire-and-forget.
+  void userIsTyping() {
+    final repository = _repository;
+    if (repository == null) return;
+    final now = _now();
+    final last = _lastTypingSentAt;
+    if (last != null && now.difference(last) < const Duration(seconds: 3)) {
       return;
     }
-    if (_disposed || _sameMessages(fetched)) return;
-    messages
-      ..clear()
-      ..addAll(fetched);
-    _notify();
+    _lastTypingSentAt = now;
+    unawaited(_sendTypingSafely(repository));
+  }
+
+  Future<void> _sendTypingSafely(ChatRepository repository) async {
+    try {
+      await repository.sendTyping(conversation.id);
+    } catch (_) {
+      // Offline / transient — the indicator simply won't show this round.
+    }
   }
 
   bool _sameMessages(List<ChatMessage> incoming) {
@@ -301,6 +356,28 @@ class ChatThreadController extends ChangeNotifier {
     if (repository == null || text.isEmpty) return;
     try {
       await repository.sendMessage(conversation.id, text);
+    } catch (_) {
+      // Offline / transient error — keep the optimistic message; sync recovers.
+    }
+  }
+
+  /// Persists an attachment message (voice/image/file) to the backend so it
+  /// survives the server sync. Without this the optimistic bubble is wiped by
+  /// the next poll because the attachment never reached the server.
+  Future<void> _forwardAttachmentToServer(
+    ChatAttachment attachment,
+    MessageType type,
+    String text,
+  ) async {
+    final repository = _repository;
+    if (repository == null) return;
+    try {
+      await repository.sendAttachment(
+        conversation.id,
+        attachment,
+        type: type,
+        text: text,
+      );
     } catch (_) {
       // Offline / transient error — keep the optimistic message; sync recovers.
     }

@@ -29,13 +29,27 @@ dependencies:
   flutter_animate: ^4.5.2
   image_picker: ^1.1.2
   url_launcher: ^6.3.0
+  audioplayers: ^6.7.1
+  enough_mail: ^2.1.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
   assets:
     - assets/jcf_logo.png
+    - assets/sounds/notification.wav
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: "assets/icon/app_icon_foreground.png"
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"

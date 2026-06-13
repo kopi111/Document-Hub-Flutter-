@@ -1,11 +1,23 @@
-import '../../models/westops/stolen_vehicle.dart';
+import 'package:http/http.dart' as http;
 
-// TODO: Add `HttpStolenVehiclesRepository` once the backend ships
-// `/api/v1/westops/stolen-vehicles`. It should reuse the existing
-// `HttpDocumentHubApiClient` in `lib/services/api/` rather than rolling its
-// own transport.
+import '../../models/westops/stolen_vehicle.dart';
+import '../api/api_config.dart';
+import '../api/document_hub_api_client.dart';
+import '../api/http_document_hub_api_client.dart';
+import '../api/token_provider.dart';
+import 'westops_transport.dart';
+
+/// Builds the repository the stolen-vehicle screens use when none is injected:
+/// the live HTTP client backed by [ApiConfig]'s configured base URL.
+StolenVehiclesRepository createStolenVehiclesRepository() =>
+    HttpStolenVehiclesRepository(apiClient: HttpDocumentHubApiClient());
+
 abstract class StolenVehiclesRepository {
   Future<List<StolenVehicle>> listAll();
+
+  /// Returns the single record with the given [id]. Throws [StateError] when no
+  /// such record exists.
+  Future<StolenVehicle> getById(String id);
 
   /// Files a new stolen-vehicle report and returns the stored record.
   Future<StolenVehicle> create(StolenVehicle vehicle);
@@ -19,6 +31,13 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
 
   @override
   Future<List<StolenVehicle>> listAll() async => _seedRecords;
+
+  @override
+  Future<StolenVehicle> getById(String id) async {
+    final index = _seedRecords.indexWhere((record) => record.id == id);
+    if (index == -1) throw StateError('No stolen vehicle with id $id');
+    return _seedRecords[index];
+  }
 
   @override
   Future<StolenVehicle> create(StolenVehicle vehicle) async {
@@ -150,4 +169,57 @@ class InMemoryStolenVehiclesRepository implements StolenVehiclesRepository {
       photoUrl: 'https://placehold.co/600x400/1a1a1a/f5d97b?text=Mitsubishi+Lancer+2014',
     ),
   ];
+}
+
+// ---------------------------------------------------------------------------
+// HTTP implementation — stolen vehicles
+// ---------------------------------------------------------------------------
+
+class HttpStolenVehiclesRepository implements StolenVehiclesRepository {
+  static const String _resource = '/westops/stolen-vehicles';
+
+  // ignore: unused_field — retained for future composition / DI by the coordinator
+  final DocumentHubApiClient _apiClient;
+  final WestopsTransport _transport;
+
+  HttpStolenVehiclesRepository({
+    required DocumentHubApiClient apiClient,
+    http.Client? httpClient,
+    ApiConfig config = const ApiConfig(),
+    TokenProvider tokenProvider = const NullTokenProvider(),
+  })  : _apiClient = apiClient,
+        _transport = WestopsTransport(
+          config: config,
+          tokenProvider: tokenProvider,
+          httpClient: httpClient ?? http.Client(),
+        );
+
+  @override
+  Future<List<StolenVehicle>> listAll() async {
+    final json = await _transport.getJson(
+      _resource,
+      const {'page': '1', 'page_size': '50'},
+    );
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return rawItems
+        .map((e) => StolenVehicle.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<StolenVehicle> getById(String id) async {
+    final json = await _transport.getJson('$_resource/$id');
+    return StolenVehicle.fromJson(json);
+  }
+
+  @override
+  Future<StolenVehicle> create(StolenVehicle vehicle) async {
+    final json = await _transport.postJson(_resource, vehicle.toJson());
+    return StolenVehicle.fromJson(json);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _transport.deleteResource('$_resource/$id');
+  }
 }

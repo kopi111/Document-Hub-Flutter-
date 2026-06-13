@@ -1,13 +1,17 @@
-import 'dart:convert';
-
 import 'package:http/http.dart' as http;
 
 import '../../models/westops/missing_person.dart';
 import '../../models/westops/sighting.dart';
 import '../api/api_config.dart';
-import '../api/api_exception.dart';
 import '../api/document_hub_api_client.dart';
+import '../api/http_document_hub_api_client.dart';
 import '../api/token_provider.dart';
+import 'westops_transport.dart';
+
+/// Builds the repository the missing-persons screens use when none is injected:
+/// the live HTTP client backed by [ApiConfig]'s configured base URL.
+MissingPersonsRepository createMissingPersonsRepository() =>
+    HttpMissingPersonsRepository(apiClient: HttpDocumentHubApiClient());
 
 /// Paged result wrapper returned by [MissingPersonsRepository.listPaged].
 class PagedResult<T> {
@@ -29,6 +33,10 @@ class PagedResult<T> {
 abstract class MissingPersonsRepository {
   /// Returns all records. Prefer [listPaged] for paginated/filtered access.
   Future<List<MissingPerson>> listAll();
+
+  /// Returns the single record with the given [id]. Throws [StateError] when no
+  /// such record exists.
+  Future<MissingPerson> getById(String id);
 
   /// Returns a filtered, paginated slice of missing-person records.
   Future<PagedResult<MissingPerson>> listPaged({
@@ -70,6 +78,13 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
 
   @override
   Future<List<MissingPerson>> listAll() async => List.unmodifiable(_seedRecords);
+
+  @override
+  Future<MissingPerson> getById(String id) async {
+    final index = _seedRecords.indexWhere((record) => record.id == id);
+    if (index == -1) throw StateError('No missing person with id $id');
+    return _seedRecords[index];
+  }
 
   @override
   Future<PagedResult<MissingPerson>> listPaged({
@@ -304,120 +319,13 @@ class InMemoryMissingPersonsRepository implements MissingPersonsRepository {
 }
 
 // ---------------------------------------------------------------------------
-// Shared HTTP transport helper (private to this file)
-// ---------------------------------------------------------------------------
-
-class _WestopsTransport {
-  final http.Client _httpClient;
-  final ApiConfig _config;
-  final TokenProvider _tokenProvider;
-
-  _WestopsTransport({
-    required ApiConfig config,
-    required TokenProvider tokenProvider,
-    required http.Client httpClient,
-  })  : _config = config,
-        _tokenProvider = tokenProvider,
-        _httpClient = httpClient;
-
-  Future<Map<String, dynamic>> getJson(
-    String path, [
-    Map<String, String>? params,
-  ]) async {
-    final uri = _resolve(path, params);
-    final response = await _httpClient.get(uri, headers: await _headers());
-    _throwIfError(response);
-    return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> postJson(
-    String path,
-    Map<String, dynamic> body,
-  ) async {
-    final uri = _resolve(path);
-    final response = await _httpClient.post(
-      uri,
-      headers: await _headers(withContentType: true),
-      body: jsonEncode(body),
-    );
-    _throwIfError(response);
-    if (response.bodyBytes.isEmpty) return {};
-    return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-  }
-
-  Future<Map<String, dynamic>> putJson(
-    String path,
-    Map<String, dynamic> body,
-  ) async {
-    final uri = _resolve(path);
-    final response = await _httpClient.put(
-      uri,
-      headers: await _headers(withContentType: true),
-      body: jsonEncode(body),
-    );
-    _throwIfError(response);
-    if (response.bodyBytes.isEmpty) return {};
-    return jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-  }
-
-  Future<void> deleteResource(String path) async {
-    final uri = _resolve(path);
-    final response =
-        await _httpClient.delete(uri, headers: await _headers());
-    _throwIfError(response);
-  }
-
-  Uri _resolve(String path, [Map<String, String>? query]) {
-    final base = Uri.parse(_config.baseUrl);
-    return base.replace(
-      path: '${base.path}$path',
-      queryParameters: query,
-    );
-  }
-
-  Future<Map<String, String>> _headers({bool withContentType = false}) async {
-    final token = await _tokenProvider.currentAccessToken();
-    return {
-      'Accept': 'application/json',
-      if (withContentType) 'Content-Type': 'application/json',
-      if (token != null) 'Authorization': 'Bearer $token',
-    };
-  }
-
-  void _throwIfError(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
-    String message;
-    try {
-      final body =
-          jsonDecode(utf8.decode(response.bodyBytes)) as Map<String, dynamic>;
-      message = (body['message'] as String?) ?? 'HTTP ${response.statusCode}';
-    } catch (_) {
-      message = 'HTTP ${response.statusCode}';
-    }
-    switch (response.statusCode) {
-      case 400:
-        throw BadRequestException(message);
-      case 401:
-        throw UnauthorizedException(message);
-      case 403:
-        throw ForbiddenException(message);
-      case 404:
-        throw NotFoundException(message);
-      default:
-        if (response.statusCode >= 500) throw ServerException(message);
-        throw ApiException(message);
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // HTTP implementation — missing persons
 // ---------------------------------------------------------------------------
 
 class HttpMissingPersonsRepository implements MissingPersonsRepository {
   // ignore: unused_field — retained for future composition / DI by the coordinator
   final DocumentHubApiClient _apiClient;
-  final _WestopsTransport _transport;
+  final WestopsTransport _transport;
 
   HttpMissingPersonsRepository({
     required DocumentHubApiClient apiClient,
@@ -425,7 +333,7 @@ class HttpMissingPersonsRepository implements MissingPersonsRepository {
     ApiConfig config = const ApiConfig(),
     TokenProvider tokenProvider = const NullTokenProvider(),
   })  : _apiClient = apiClient,
-        _transport = _WestopsTransport(
+        _transport = WestopsTransport(
           config: config,
           tokenProvider: tokenProvider,
           httpClient: httpClient ?? http.Client(),
@@ -486,7 +394,7 @@ class HttpMissingPersonsRepository implements MissingPersonsRepository {
     required String foundBy,
     String? foundNotes,
   }) async {
-    final existing = await _fetchById(id);
+    final existing = await getById(id);
     if (existing.isFound) {
       throw StateError('Missing person with id $id is already marked as found');
     }
@@ -513,10 +421,11 @@ class HttpMissingPersonsRepository implements MissingPersonsRepository {
       'added_by': sighting.addedBy,
       if (sighting.notes != null) 'notes': sighting.notes,
     });
-    return _fetchById(id);
+    return getById(id);
   }
 
-  Future<MissingPerson> _fetchById(String id) async {
+  @override
+  Future<MissingPerson> getById(String id) async {
     final json =
         await _transport.getJson('/westops/missing-persons/$id');
     return MissingPerson.fromJson(json);
@@ -530,7 +439,7 @@ class HttpMissingPersonsRepository implements MissingPersonsRepository {
 class HttpSightingsRepository {
   // ignore: unused_field — retained for future composition / DI by the coordinator
   final DocumentHubApiClient _apiClient;
-  final _WestopsTransport _transport;
+  final WestopsTransport _transport;
 
   HttpSightingsRepository({
     required DocumentHubApiClient apiClient,
@@ -538,7 +447,7 @@ class HttpSightingsRepository {
     ApiConfig config = const ApiConfig(),
     TokenProvider tokenProvider = const NullTokenProvider(),
   })  : _apiClient = apiClient,
-        _transport = _WestopsTransport(
+        _transport = WestopsTransport(
           config: config,
           tokenProvider: tokenProvider,
           httpClient: httpClient ?? http.Client(),

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'sighting.dart';
@@ -83,6 +84,86 @@ class WantedPerson {
     final knownAs = alias;
     if (knownAs == null || knownAs.isEmpty) return fullName;
     return '$fullName "$knownAs"';
+  }
+
+  factory WantedPerson.fromJson(Map<String, dynamic> json) {
+    return WantedPerson(
+      id: (json['id'] as String?) ?? '',
+      firstName: (json['first_name'] as String?) ?? '',
+      lastName: (json['last_name'] as String?) ?? '',
+      alias: json['alias'] as String?,
+      gender: json['gender'] as String?,
+      age: json['age'] as int?,
+      dateOfBirth: _parseDate(json['date_of_birth'] as String?),
+      occupation: json['occupation'] as String?,
+      address: json['address'] as String?,
+      placesFrequented: json['places_frequented'] as String?,
+      crimeDescription: json['crime_description'] as String?,
+      photoUrl: json['photo_url'] as String?,
+      photoBytes: _decodePhoto(json['photo_base64'] as String?),
+      rewardAmount: (json['reward_amount'] as num?)?.toDouble(),
+      investigatingOfficerPhone: json['investigating_officer_phone'] as String?,
+      investigatingOfficer: json['investigating_officer'] as String?,
+      investigatingOfficerSupervisor:
+          json['investigating_officer_supervisor'] as String?,
+      stationContactNumber: json['station_contact_number'] as String?,
+      stationName: json['station_name'] as String?,
+      stationNumber: json['station_number'] as String?,
+      status: json['status'] as String?,
+      capturedDate: _parseDate(json['captured_date'] as String?),
+      capturedLocation: json['captured_location'] as String?,
+      capturedBy: json['captured_by'] as String?,
+      captureNotes: json['capture_notes'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    final photoB64 = photoBytes != null ? base64Encode(photoBytes!) : null;
+    return {
+      'id': id,
+      'first_name': firstName,
+      'last_name': lastName,
+      if (alias != null) 'alias': alias,
+      if (gender != null) 'gender': gender,
+      if (age != null) 'age': age,
+      if (dateOfBirth != null)
+        'date_of_birth': dateOfBirth!.toUtc().toIso8601String(),
+      if (occupation != null) 'occupation': occupation,
+      if (address != null) 'address': address,
+      if (placesFrequented != null) 'places_frequented': placesFrequented,
+      if (crimeDescription != null) 'crime_description': crimeDescription,
+      if (photoUrl != null) 'photo_url': photoUrl,
+      if (photoB64 != null) 'photo_base64': photoB64,
+      if (rewardAmount != null) 'reward_amount': rewardAmount,
+      if (investigatingOfficerPhone != null)
+        'investigating_officer_phone': investigatingOfficerPhone,
+      if (investigatingOfficer != null)
+        'investigating_officer': investigatingOfficer,
+      if (investigatingOfficerSupervisor != null)
+        'investigating_officer_supervisor': investigatingOfficerSupervisor,
+      if (stationContactNumber != null)
+        'station_contact_number': stationContactNumber,
+      if (stationName != null) 'station_name': stationName,
+      if (stationNumber != null) 'station_number': stationNumber,
+      if (status != null) 'status': status,
+      if (capturedDate != null)
+        'captured_date': capturedDate!.toUtc().toIso8601String(),
+      if (capturedLocation != null) 'captured_location': capturedLocation,
+      if (capturedBy != null) 'captured_by': capturedBy,
+      if (captureNotes != null) 'capture_notes': captureNotes,
+    };
+  }
+
+  static DateTime? _parseDate(String? value) =>
+      value == null ? null : DateTime.tryParse(value)?.toUtc();
+
+  static Uint8List? _decodePhoto(String? base64Photo) {
+    if (base64Photo == null) return null;
+    try {
+      return base64Decode(base64Photo);
+    } on FormatException {
+      return null;
+    }
   }
 
   WantedPerson copyWith({

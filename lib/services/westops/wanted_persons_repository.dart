@@ -1,12 +1,24 @@
+import 'package:http/http.dart' as http;
+
 import '../../models/westops/sighting.dart';
 import '../../models/westops/wanted_person.dart';
+import '../api/api_config.dart';
+import '../api/document_hub_api_client.dart';
+import '../api/http_document_hub_api_client.dart';
+import '../api/token_provider.dart';
+import 'westops_transport.dart';
 
-// TODO: Add `HttpWantedPersonsRepository` once the backend ships
-// `/api/v1/westops/wanted-persons`. It should reuse the existing
-// `HttpDocumentHubApiClient` in `lib/services/api/` rather than rolling its
-// own transport.
+/// Builds the repository the WestOps wanted screens use when no test double is
+/// injected: the live HTTP client backed by [ApiConfig]'s configured base URL.
+WantedPersonsRepository createWantedPersonsRepository() =>
+    HttpWantedPersonsRepository(apiClient: HttpDocumentHubApiClient());
+
 abstract class WantedPersonsRepository {
   Future<List<WantedPerson>> listAll();
+
+  /// Returns the single record with the given [id]. Throws [StateError] when no
+  /// such record exists.
+  Future<WantedPerson> getById(String id);
 
   /// Files a new wanted-person record and returns the stored record.
   Future<WantedPerson> create(WantedPerson person);
@@ -34,6 +46,13 @@ class InMemoryWantedPersonsRepository implements WantedPersonsRepository {
 
   @override
   Future<List<WantedPerson>> listAll() async => _seedRecords;
+
+  @override
+  Future<WantedPerson> getById(String id) async {
+    final index = _seedRecords.indexWhere((record) => record.id == id);
+    if (index == -1) throw StateError('No wanted person with id $id');
+    return _seedRecords[index];
+  }
 
   @override
   Future<WantedPerson> create(WantedPerson person) async {
@@ -239,4 +258,92 @@ class InMemoryWantedPersonsRepository implements WantedPersonsRepository {
       status: 'Wanted',
     ),
   ];
+}
+
+// ---------------------------------------------------------------------------
+// HTTP implementation — wanted persons
+// ---------------------------------------------------------------------------
+
+class HttpWantedPersonsRepository implements WantedPersonsRepository {
+  static const String _resource = '/westops/wanted-persons';
+
+  // ignore: unused_field — retained for future composition / DI by the coordinator
+  final DocumentHubApiClient _apiClient;
+  final WestopsTransport _transport;
+
+  HttpWantedPersonsRepository({
+    required DocumentHubApiClient apiClient,
+    http.Client? httpClient,
+    ApiConfig config = const ApiConfig(),
+    TokenProvider tokenProvider = const NullTokenProvider(),
+  })  : _apiClient = apiClient,
+        _transport = WestopsTransport(
+          config: config,
+          tokenProvider: tokenProvider,
+          httpClient: httpClient ?? http.Client(),
+        );
+
+  @override
+  Future<List<WantedPerson>> listAll() async {
+    final json = await _transport.getJson(
+      _resource,
+      const {'page': '1', 'page_size': '50'},
+    );
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return rawItems
+        .map((e) => WantedPerson.fromJson(e as Map<String, dynamic>))
+        .toList(growable: false);
+  }
+
+  @override
+  Future<WantedPerson> getById(String id) async {
+    final json = await _transport.getJson('$_resource/$id');
+    return WantedPerson.fromJson(json);
+  }
+
+  @override
+  Future<WantedPerson> create(WantedPerson person) async {
+    final json = await _transport.postJson(_resource, person.toJson());
+    return WantedPerson.fromJson(json);
+  }
+
+  @override
+  Future<void> delete(String id) async {
+    await _transport.deleteResource('$_resource/$id');
+  }
+
+  @override
+  Future<WantedPerson> markCaptured({
+    required String id,
+    required DateTime capturedDate,
+    required String capturedLocation,
+    required String capturedBy,
+    String? captureNotes,
+  }) async {
+    final existing = await getById(id);
+    if (existing.isCaptured) {
+      throw StateError('Wanted person with id $id is already marked as captured');
+    }
+    final updated = existing.copyWith(
+      status: WantedPerson.statusCaptured,
+      capturedDate: capturedDate,
+      capturedLocation: capturedLocation,
+      capturedBy: capturedBy,
+      captureNotes: captureNotes,
+    );
+    final json = await _transport.putJson('$_resource/$id', updated.toJson());
+    return WantedPerson.fromJson(json);
+  }
+
+  @override
+  Future<WantedPerson> addSighting(String id, Sighting sighting) async {
+    await _transport.postJson('/westops/sightings', {
+      'person_id': id,
+      'location': sighting.location,
+      'seen_at': sighting.seenAt.toUtc().toIso8601String(),
+      'added_by': sighting.addedBy,
+      if (sighting.notes != null) 'notes': sighting.notes,
+    });
+    return getById(id);
+  }
 }

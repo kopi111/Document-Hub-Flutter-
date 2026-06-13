@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../services/notifications/notification_sound_controller.dart';
 import 'eula_screen.dart';
 import 'privacy_notice_screen.dart';
 
@@ -54,6 +55,9 @@ class AboutScreen extends StatelessWidget {
               trailing: const Icon(Icons.chevron_right),
               onTap: () => _openLicensePage(context),
             ),
+            const Divider(),
+            const _SectionHeading(label: 'Notifications'),
+            const _NotificationSoundTile(),
             const Divider(),
             const _SectionHeading(label: 'Contact'),
             const ListTile(
@@ -155,6 +159,43 @@ class _AppHeader extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+/// Toggles the notification chime. Reads and writes the shared
+/// [NotificationSoundController] so the change takes effect immediately and is
+/// remembered across launches.
+class _NotificationSoundTile extends StatefulWidget {
+  const _NotificationSoundTile();
+
+  @override
+  State<_NotificationSoundTile> createState() => _NotificationSoundTileState();
+}
+
+class _NotificationSoundTileState extends State<_NotificationSoundTile> {
+  @override
+  void initState() {
+    super.initState();
+    NotificationSoundController.instance.ensureLoaded();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = NotificationSoundController.instance;
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) => SwitchListTile(
+        secondary: Icon(
+          controller.enabled
+              ? Icons.notifications_active_outlined
+              : Icons.notifications_off_outlined,
+        ),
+        title: const Text('Notification sound'),
+        subtitle: const Text('Play a chime when a new bulletin arrives'),
+        value: controller.enabled,
+        onChanged: controller.setEnabled,
+      ),
     );
   }
 }

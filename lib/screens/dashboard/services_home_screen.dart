@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../models/notifications/app_notification.dart';
+import '../../services/chat/chat_repository.dart';
 import '../../services/news/in_memory_news_repository.dart';
 import '../../services/news/news_repository.dart';
+import '../../services/notifications/app_notifications_store.dart';
 import '../../services/phone_dialer.dart';
 import '../../theme/hub_style.dart';
 import '../../widgets/app_drawer.dart';
@@ -39,23 +42,64 @@ class ServicesHomeScreen extends StatefulWidget {
 class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final NewsRepository _newsRepository = InMemoryNewsRepository();
+  int _chatUnread = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    AppNotificationsStore.instance.addListener(_onCountsChanged);
+    _loadChatUnread();
+  }
+
+  @override
+  void dispose() {
+    AppNotificationsStore.instance.removeListener(_onCountsChanged);
+    super.dispose();
+  }
+
+  void _onCountsChanged() {
+    if (mounted) setState(() {});
+  }
+
+  /// Total unread officer messages across all conversations, shown on the Chat tile.
+  Future<void> _loadChatUnread() async {
+    try {
+      final conversations = await InMemoryChatRepository().conversations();
+      final unread = conversations.fold<int>(0, (sum, c) => sum + c.unreadCount);
+      if (mounted) setState(() => _chatUnread = unread);
+    } catch (_) {
+      // Leave the badge at zero if the roster can't be read.
+    }
+  }
+
+  int _kindCount(NotificationKind kind) =>
+      AppNotificationsStore.instance.items.where((n) => n.kind == kind).length;
 
   void _open(Widget screen) {
     Navigator.of(context).push(MaterialPageRoute(builder: (_) => screen));
   }
 
+  /// Opens a section after clearing its notification badge — viewing the
+  /// section counts as seeing those bulletins, so the count must not re-stand.
+  void _openSection(NotificationKind kind, Widget screen) {
+    AppNotificationsStore.instance.dismissKind(kind);
+    _open(screen);
+  }
+
   void _openLibrary() => _open(const DocumentsHomeScreen());
-  void _openWanted() => _open(const WantedListScreen());
-  void _openMissing() => _open(const MissingListScreen());
-  void _openStolenVehicles() => _open(const StolenVehiclesListScreen());
+  void _openWanted() => _openSection(NotificationKind.wanted, const WantedListScreen());
+  void _openMissing() => _openSection(NotificationKind.missing, const MissingListScreen());
+  void _openStolenVehicles() =>
+      _openSection(NotificationKind.stolen, const StolenVehiclesListScreen());
   void _openTrafficCodes() => _open(const TrafficCodesListScreen());
-  void _openNews() => _open(NewsFeedScreen(repository: _newsRepository));
+  void _openNews() =>
+      _openSection(NotificationKind.news, NewsFeedScreen(repository: _newsRepository));
   void _openCalendar() => _open(const CalendarScreen());
   void _openNotes() => _open(const NotesScreen());
   void _openMap() => _open(const MapScreen());
   void _openDirectory() => _open(const DirectoryScreen());
   void _openChat() => _open(const ChatGate());
-  void _openEmail() => _open(const EmailLoginScreen());
+  void _openEmail() => _openSection(NotificationKind.email, const EmailLoginScreen());
   void _openAbout() => _open(const AboutScreen());
   void _openNotifications() => _open(const NotificationsScreen());
   void _openMenu() => _scaffoldKey.currentState?.openDrawer();
@@ -107,18 +151,21 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
           label: 'Wanted\nPersons',
           tint: HubTint.green,
           onTap: _openWanted,
+          badgeCount: _kindCount(NotificationKind.wanted),
         ),
         _ServiceTileData(
           icon: Icons.person_search,
           label: 'Missing\nPersons',
           tint: HubTint.orange,
           onTap: _openMissing,
+          badgeCount: _kindCount(NotificationKind.missing),
         ),
         _ServiceTileData(
           icon: Icons.directions_car,
           label: 'Stolen\nVehicles',
           tint: HubTint.red,
           onTap: _openStolenVehicles,
+          badgeCount: _kindCount(NotificationKind.stolen),
         ),
         _ServiceTileData(
           icon: Icons.traffic,
@@ -131,6 +178,7 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
           label: 'Force\nNews',
           tint: HubTint.blue,
           onTap: _openNews,
+          badgeCount: _kindCount(NotificationKind.news),
         ),
         _ServiceTileData(
           icon: Icons.event_available,
@@ -161,12 +209,14 @@ class _ServicesHomeScreenState extends State<ServicesHomeScreen> {
           label: 'Chat',
           tint: HubTint.blue,
           onTap: _openChat,
+          badgeCount: _chatUnread,
         ),
         _ServiceTileData(
           icon: Icons.email,
           label: 'Email',
           tint: HubTint.red,
           onTap: _openEmail,
+          badgeCount: _kindCount(NotificationKind.email),
         ),
       ];
 
@@ -355,6 +405,7 @@ class _ServicesGrid extends StatelessWidget {
           label: data.label,
           tint: data.tint,
           onTap: data.onTap,
+          badgeCount: data.badgeCount,
         );
       },
     );
@@ -367,12 +418,14 @@ class _ServiceTileData {
     required this.label,
     required this.tint,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String label;
   final HubTint tint;
   final VoidCallback onTap;
+  final int badgeCount;
 }
 
 class _AlertBanner extends StatelessWidget {

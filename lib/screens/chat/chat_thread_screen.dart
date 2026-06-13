@@ -292,7 +292,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 onJumpTo: _scrollToMessage,
               ),
               Expanded(child: _buildMessageList()),
-              if (_peerIsTyping) _buildTypingRow(),
+              if (_showTyping) _buildTypingRow(),
               ReplyComposeBar(controller: _controller),
               _buildComposer(),
             ],
@@ -341,7 +341,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
                 ),
                 PresenceSubtitle(
                   contact: _conversation.contact,
-                  isTyping: _peerIsTyping,
+                  isTyping: _showTyping,
                 ),
               ],
             ),
@@ -417,12 +417,18 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
   GlobalKey _keyFor(String messageId) =>
       _messageKeys.putIfAbsent(messageId, GlobalKey.new);
 
+  /// Show the typing row when either the in-memory demo peer or a real peer
+  /// (reported by the server poll) is composing.
+  bool get _showTyping => _peerIsTyping || _controller.peerTyping;
+
+  String? get _typistLabel => _typingPeerName ?? _controller.typistName;
+
   Widget _buildTypingRow() {
     return Align(
       alignment: Alignment.centerLeft,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(ChatStyle.pageInset, 0, 64, 6),
-        child: TypingIndicator(typistName: _typingPeerName),
+        child: TypingIndicator(typistName: _typistLabel),
       ),
     );
   }
@@ -456,6 +462,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final editing = _controller.editing != null;
     return TextField(
       controller: _input,
+      onChanged: (_) => _controller.userIsTyping(),
       style: ChatStyle.body(size: 14, color: ChatStyle.textPrimary),
       maxLines: 5,
       minLines: 1,

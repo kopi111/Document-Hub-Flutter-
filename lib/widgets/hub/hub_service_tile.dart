@@ -11,12 +11,16 @@ class HubServiceTile extends StatelessWidget {
     required this.label,
     required this.tint,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final IconData icon;
   final String label;
   final HubTint tint;
   final VoidCallback onTap;
+
+  /// Unread/new count shown as a red badge on the icon. Hidden when zero.
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -36,14 +40,43 @@ class HubServiceTile extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Container(
-                  width: 52,
-                  height: 52,
-                  decoration: BoxDecoration(
-                    color: tint.background,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(icon, color: tint.foreground, size: 26),
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        color: tint.background,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(icon, color: tint.foreground, size: 26),
+                    ),
+                    if (badgeCount > 0)
+                      Positioned(
+                        right: -4,
+                        top: -4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          constraints: const BoxConstraints(minWidth: 20, minHeight: 20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFE0414C),
+                            borderRadius: BorderRadius.circular(11),
+                            border: Border.all(color: HubStyle.cardSurface, width: 2),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            badgeCount > 99 ? '99+' : '$badgeCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              height: 1.1,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 10),
                 Text(

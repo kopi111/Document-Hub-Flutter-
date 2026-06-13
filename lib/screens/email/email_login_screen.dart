@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../../services/email/jcf_mail_service.dart';
 import '../../theme/nam_style.dart';
 import 'email_inbox_screen.dart';
 
 /// JCF email sign-in card.
 ///
-/// Accepts any non-empty email + password (real LDAP auth is wired later).
-/// On success navigates to [EmailInboxScreen].
+/// Authenticates against the JCF mail host over IMAP. On success navigates to
+/// [EmailInboxScreen] with the live [JcfMailService] session.
 class EmailLoginScreen extends StatefulWidget {
   const EmailLoginScreen({super.key});
 
@@ -20,6 +21,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
   final TextEditingController _password = TextEditingController();
   bool _obscurePassword = true;
   bool _signingIn = false;
+  String? _signInError;
 
   @override
   void dispose() {
@@ -33,15 +35,28 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
 
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _signingIn = true);
-    // Simulate a brief auth round-trip before the real LDAP wiring arrives.
-    await Future<void>.delayed(const Duration(milliseconds: 400));
-    if (!mounted) return;
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute<void>(
-        builder: (_) => EmailInboxScreen(userEmail: _email.text.trim()),
-      ),
-    );
+    setState(() {
+      _signingIn = true;
+      _signInError = null;
+    });
+    try {
+      final session = await JcfMailService.signIn(
+        email: _email.text.trim(),
+        password: _password.text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => EmailInboxScreen(session: session),
+        ),
+      );
+    } on MailAuthException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _signingIn = false;
+        _signInError = error.message;
+      });
+    }
   }
 
   @override
@@ -62,6 +77,7 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
                 passwordController: _password,
                 obscurePassword: _obscurePassword,
                 signingIn: _signingIn,
+                signInError: _signInError,
                 onToggleObscure: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
                 onSignIn: _signIn,
@@ -82,6 +98,7 @@ class _SignInCard extends StatelessWidget {
     required this.passwordController,
     required this.obscurePassword,
     required this.signingIn,
+    required this.signInError,
     required this.onToggleObscure,
     required this.onSignIn,
     required this.validateNonEmpty,
@@ -92,6 +109,7 @@ class _SignInCard extends StatelessWidget {
   final TextEditingController passwordController;
   final bool obscurePassword;
   final bool signingIn;
+  final String? signInError;
   final VoidCallback onToggleObscure;
   final VoidCallback onSignIn;
   final String? Function(String?) validateNonEmpty;
@@ -124,6 +142,10 @@ class _SignInCard extends StatelessWidget {
               onToggleObscure: onToggleObscure,
               validator: validateNonEmpty,
             ),
+            if (signInError != null) ...[
+              const SizedBox(height: 18),
+              _ErrorBanner(message: signInError!),
+            ],
             const SizedBox(height: 24),
             _SignInButton(signingIn: signingIn, onSignIn: onSignIn),
             const SizedBox(height: 20),
@@ -266,11 +288,43 @@ class _SignInButton extends StatelessWidget {
   }
 }
 
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: NamStyle.alert.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: NamStyle.alert.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, size: 18, color: NamStyle.alert),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: NamStyle.body(size: 12, color: NamStyle.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _LdapNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Text(
-      'Single sign-on with your JCF network account (LDAP) is coming soon.',
+      'Sign in with your JCF mailbox address and password. '
+      'Your credentials go straight to the JCF mail server and are never stored.',
       style: NamStyle.body(size: 11, color: NamStyle.textSecondary),
       textAlign: TextAlign.center,
     );

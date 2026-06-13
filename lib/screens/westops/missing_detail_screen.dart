@@ -27,7 +27,7 @@ class MissingDetailScreen extends StatefulWidget {
 
 class _MissingDetailScreenState extends State<MissingDetailScreen> {
   late final MissingPersonsRepository _repository =
-      widget.repository ?? const InMemoryMissingPersonsRepository();
+      widget.repository ?? createMissingPersonsRepository();
   late MissingPerson _person = widget.person;
 
   bool _submitting = false;

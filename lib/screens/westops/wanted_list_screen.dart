@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../models/westops/wanted_person.dart';
+import '../../services/westops/seen_records_store.dart';
 import '../../services/westops/wanted_persons_repository.dart';
 import '../../theme/hub_style.dart';
 import '../../widgets/editorial/shared_axis_route.dart';
@@ -104,7 +105,7 @@ class WantedListScreen extends StatefulWidget {
 
 class _WantedListScreenState extends State<WantedListScreen> {
   late final WantedPersonsRepository _repository =
-      widget.repository ?? const InMemoryWantedPersonsRepository();
+      widget.repository ?? createWantedPersonsRepository();
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -120,7 +121,13 @@ class _WantedListScreenState extends State<WantedListScreen> {
   @override
   void initState() {
     super.initState();
+    SeenRecordsStore.instance.addListener(_onSeenChanged);
+    SeenRecordsStore.instance.ensureLoaded();
     _loadRecords();
+  }
+
+  void _onSeenChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadRecords() async {
@@ -201,6 +208,7 @@ class _WantedListScreenState extends State<WantedListScreen> {
       setState(() => _category = _category == value ? null : value);
 
   Future<void> _openDetail(WantedPerson person) async {
+    SeenRecordsStore.instance.markSeen(person.id);
     await Navigator.push(
       context,
       sharedAxis(WantedDetailScreen(person: person, repository: _repository)),
@@ -229,6 +237,7 @@ class _WantedListScreenState extends State<WantedListScreen> {
 
   @override
   void dispose() {
+    SeenRecordsStore.instance.removeListener(_onSeenChanged);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
@@ -403,7 +412,8 @@ class _WantedListScreenState extends State<WantedListScreen> {
         separatorBuilder: (_, _) => const SizedBox(width: 12),
         itemBuilder: (context, index) => _RecentCard(
           person: recent[index],
-          isNewest: index == 0,
+          isNewest:
+              index == 0 && !SeenRecordsStore.instance.isSeen(recent[index].id),
           onTap: () => _openDetail(recent[index]),
         ),
       ),

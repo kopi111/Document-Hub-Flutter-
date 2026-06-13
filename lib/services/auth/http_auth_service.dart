@@ -94,6 +94,7 @@ class HttpAuthService implements AuthService {
       username: (json['username'] as String?) ?? '',
       rank: json['rank'] as String?,
       station: json['station'] as String?,
+      email: json['email'] as String?,
     );
   }
 }

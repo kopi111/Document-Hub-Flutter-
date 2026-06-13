@@ -20,7 +20,9 @@ class NewChatScreen extends StatefulWidget {
 }
 
 class _NewChatScreenState extends State<NewChatScreen> {
+  final TextEditingController _searchController = TextEditingController();
   List<ChatContact> _contacts = [];
+  String _query = '';
   bool _loading = true;
 
   @override
@@ -29,13 +31,33 @@ class _NewChatScreenState extends State<NewChatScreen> {
     _loadContacts();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadContacts() async {
-    final contacts = await widget.repository.availableContacts();
+    // Show every officer (not just those without a thread) so search finds
+    // anyone; selecting one opens the existing conversation or starts a new one.
+    final contacts = await widget.repository.allContacts();
     if (!mounted) return;
     setState(() {
       _contacts = contacts;
       _loading = false;
     });
+  }
+
+  /// Officers matching the search box, filtered by name, rank, or station.
+  List<ChatContact> get _filteredContacts {
+    final query = _query.trim().toLowerCase();
+    if (query.isEmpty) return _contacts;
+    return _contacts
+        .where((contact) =>
+            contact.name.toLowerCase().contains(query) ||
+            contact.rank.toLowerCase().contains(query) ||
+            contact.station.toLowerCase().contains(query))
+        .toList(growable: false);
   }
 
   Future<void> _createGroup() async {
@@ -66,33 +88,111 @@ class _NewChatScreenState extends State<NewChatScreen> {
         child: CircularProgressIndicator(color: ChatStyle.gold),
       );
     }
-    return ListView(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+    final searching = _query.trim().isNotEmpty;
+    final results = _filteredContacts;
+    return Column(
       children: [
-        _NewGroupTile(onTap: _createGroup),
-        Divider(
-          height: 1,
-          thickness: 1,
-          color: ChatStyle.hairline,
-          indent: ChatStyle.pageInset,
-          endIndent: ChatStyle.pageInset,
+        _SearchField(
+          controller: _searchController,
+          onChanged: (value) => setState(() => _query = value),
+          onClear: () => setState(() {
+            _query = '';
+            _searchController.clear();
+          }),
         ),
-        if (_contacts.isEmpty)
-          Padding(
-            padding: const EdgeInsets.all(32),
-            child: Text(
-              'No more officers to message individually.\nYou can still start a group above.',
-              textAlign: TextAlign.center,
-              style: ChatStyle.body(color: ChatStyle.textSecondary),
-            ),
-          )
-        else
-          for (final contact in _contacts)
-            _ContactTile(
-              contact: contact,
-              onTap: () => Navigator.of(context).pop(contact),
-            ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            children: [
+              if (!searching) ...[
+                _NewGroupTile(onTap: _createGroup),
+                Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: ChatStyle.hairline,
+                  indent: ChatStyle.pageInset,
+                  endIndent: ChatStyle.pageInset,
+                ),
+              ],
+              if (results.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Text(
+                    searching
+                        ? 'No officer matches “$_query”.'
+                        : 'No more officers to message individually.\nYou can still start a group above.',
+                    textAlign: TextAlign.center,
+                    style: ChatStyle.body(color: ChatStyle.textSecondary),
+                  ),
+                )
+              else
+                for (final contact in results)
+                  _ContactTile(
+                    contact: contact,
+                    onTap: () => Navigator.of(context).pop(contact),
+                  ),
+            ],
+          ),
+        ),
       ],
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({
+    required this.controller,
+    required this.onChanged,
+    required this.onClear,
+  });
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+        ChatStyle.pageInset,
+        12,
+        ChatStyle.pageInset,
+        4,
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        textInputAction: TextInputAction.search,
+        style: ChatStyle.body(color: ChatStyle.textPrimary),
+        decoration: InputDecoration(
+          hintText: 'Search officers by name, rank, or station',
+          hintStyle: ChatStyle.body(size: 13, color: ChatStyle.textSecondary),
+          prefixIcon: const Icon(Icons.search, color: ChatStyle.textSecondary),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close,
+                      color: ChatStyle.textSecondary, size: 20),
+                  onPressed: onClear,
+                ),
+          filled: true,
+          fillColor: ChatStyle.surface,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: ChatStyle.hairline),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: ChatStyle.hairline),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: ChatStyle.gold, width: 1.5),
+          ),
+        ),
+      ),
     );
   }
 }

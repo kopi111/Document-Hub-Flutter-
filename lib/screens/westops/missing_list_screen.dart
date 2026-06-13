@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../models/westops/missing_person.dart';
 import '../../services/westops/missing_persons_repository.dart';
+import '../../services/westops/seen_records_store.dart';
 import '../../theme/hub_style.dart';
 import '../../widgets/editorial/shared_axis_route.dart';
 import '../../widgets/hub/hub_category_card.dart';
@@ -122,7 +123,7 @@ class MissingListScreen extends StatefulWidget {
 
 class _MissingListScreenState extends State<MissingListScreen> {
   late final MissingPersonsRepository _repository =
-      widget.repository ?? const InMemoryMissingPersonsRepository();
+      widget.repository ?? createMissingPersonsRepository();
   final TextEditingController _searchController = TextEditingController();
 
   List<MissingPerson> _all = [];
@@ -135,7 +136,13 @@ class _MissingListScreenState extends State<MissingListScreen> {
   @override
   void initState() {
     super.initState();
+    SeenRecordsStore.instance.addListener(_onSeenChanged);
+    SeenRecordsStore.instance.ensureLoaded();
     _loadRecords();
+  }
+
+  void _onSeenChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadRecords() async {
@@ -196,6 +203,7 @@ class _MissingListScreenState extends State<MissingListScreen> {
       setState(() => _filter = _filter == filter ? _Filter.all : filter);
 
   Future<void> _openDetail(MissingPerson person) async {
+    SeenRecordsStore.instance.markSeen(person.id);
     final changed = await Navigator.push<bool>(
       context,
       sharedAxis(MissingDetailScreen(person: person, repository: _repository)),
@@ -219,6 +227,7 @@ class _MissingListScreenState extends State<MissingListScreen> {
 
   @override
   void dispose() {
+    SeenRecordsStore.instance.removeListener(_onSeenChanged);
     _searchController.dispose();
     super.dispose();
   }
@@ -387,7 +396,8 @@ class _MissingListScreenState extends State<MissingListScreen> {
           final person = recent[index];
           return _RecentCard(
             person: person,
-            isNewest: person.id == newestId,
+            isNewest:
+                person.id == newestId && !SeenRecordsStore.instance.isSeen(person.id),
             onTap: () => _openDetail(person),
           );
         },

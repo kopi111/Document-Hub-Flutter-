@@ -21,7 +21,7 @@ class StolenVehicleDetailScreen extends StatelessWidget {
       itemLabel: vehicle.displayName,
     );
     if (regulation == null) return;
-    final repo = repository ?? const InMemoryStolenVehiclesRepository();
+    final repo = repository ?? createStolenVehiclesRepository();
     await repo.delete(vehicle.id);
     navigator.pop(true);
     messenger.showSnackBar(
@@ -40,6 +40,7 @@ class StolenVehicleDetailScreen extends StatelessWidget {
   Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: const BackButton(color: JcfPalette.accent),
         title: Text(vehicle.displayName),
         actions: [
           IconButton(

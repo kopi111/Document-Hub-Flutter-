@@ -2,27 +2,25 @@ import 'package:flutter/material.dart';
 
 import '../../models/email/email_message.dart';
 import '../../models/notifications/app_notification.dart';
-import '../../services/email/email_repository.dart';
+import '../../services/email/jcf_mail_service.dart';
 import '../../services/notifications/app_notifications_store.dart';
 import '../../theme/nam_style.dart';
 
 /// Inbox view for the signed-in officer.
 ///
-/// Loads messages from [EmailRepository] on first mount, fires one unread
-/// notification into [AppNotificationsStore] (guarded to run once), then
-/// presents a scrollable list. Tapping a row opens a detail sheet.
+/// Loads messages from the live [JcfMailService] session on first mount, fires
+/// one unread notification into [AppNotificationsStore] (guarded to run once),
+/// then presents a scrollable list. Tapping a row opens a detail sheet.
 class EmailInboxScreen extends StatefulWidget {
-  const EmailInboxScreen({super.key, required this.userEmail});
+  const EmailInboxScreen({super.key, required this.session});
 
-  final String userEmail;
+  final JcfMailService session;
 
   @override
   State<EmailInboxScreen> createState() => _EmailInboxScreenState();
 }
 
 class _EmailInboxScreenState extends State<EmailInboxScreen> {
-  final EmailRepository _repository = const InMemoryEmailRepository();
-
   List<EmailMessage> _messages = [];
   bool _loading = true;
   String? _error;
@@ -34,19 +32,29 @@ class _EmailInboxScreenState extends State<EmailInboxScreen> {
     _loadInbox();
   }
 
+  @override
+  void dispose() {
+    widget.session.signOut();
+    super.dispose();
+  }
+
   Future<void> _loadInbox() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
-      final messages = await _repository.inbox();
+      final messages = await widget.session.loadInbox();
       if (!mounted) return;
       setState(() {
         _messages = messages;
         _loading = false;
       });
       _fireUnreadNotificationOnce(messages);
-    } catch (error) {
+    } on MailSyncException catch (error) {
       if (!mounted) return;
       setState(() {
-        _error = 'Could not load inbox: $error';
+        _error = error.message;
         _loading = false;
       });
     }
@@ -101,12 +109,19 @@ class _EmailInboxScreenState extends State<EmailInboxScreen> {
         children: [
           const Text('Inbox'),
           Text(
-            widget.userEmail,
+            widget.session.address,
             style: NamStyle.body(size: 11, color: NamStyle.textSecondary),
           ),
         ],
       ),
       toolbarHeight: 64,
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.refresh),
+          tooltip: 'Refresh',
+          onPressed: _loading ? null : _loadInbox,
+        ),
+      ],
     );
   }
 
@@ -117,9 +132,7 @@ class _EmailInboxScreenState extends State<EmailInboxScreen> {
       );
     }
     if (_error != null) {
-      return Center(
-        child: Text(_error!, style: NamStyle.body(color: NamStyle.textPrimary)),
-      );
+      return _InboxError(message: _error!, onRetry: _loadInbox);
     }
     if (_messages.isEmpty) {
       return Center(
@@ -152,6 +165,44 @@ class _MessageList extends StatelessWidget {
       itemBuilder: (_, index) => _MessageRow(
         message: messages[index],
         onTap: () => onOpen(messages[index]),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Error state
+// ---------------------------------------------------------------------------
+
+class _InboxError extends StatelessWidget {
+  const _InboxError({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(NamStyle.pageInset),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off, size: 40, color: NamStyle.textSecondary),
+            const SizedBox(height: 14),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: NamStyle.body(color: NamStyle.textPrimary),
+            ),
+            const SizedBox(height: 20),
+            OutlinedButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Try again'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -291,8 +342,7 @@ class _RowContent extends StatelessWidget {
   }
 
   String _relativeTime(DateTime time) {
-    final now = DateTime(2026, 5, 31, 23, 59);
-    final diff = now.difference(time);
+    final diff = DateTime.now().difference(time);
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays == 1) return 'Yesterday';

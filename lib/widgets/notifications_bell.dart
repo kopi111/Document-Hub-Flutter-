@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../screens/notifications/notifications_screen.dart';
 import '../services/news/in_memory_news_repository.dart';
 import '../services/news/news_repository.dart';
+import '../services/notifications/api_notifications_client.dart';
 import '../services/notifications/app_notifications_store.dart';
+import '../services/notifications/notification_sound_controller.dart';
 import '../services/notifications/notifications_service.dart';
 
 class NotificationsBell extends StatefulWidget {
@@ -18,17 +22,23 @@ class NotificationsBell extends StatefulWidget {
 class _NotificationsBellState extends State<NotificationsBell> {
   late final NewsRepository _newsRepository =
       widget.newsRepository ?? InMemoryNewsRepository();
+  final ApiNotificationsClient _apiNotifications = ApiNotificationsClient();
+  Timer? _poll;
   int _count = 0;
+  bool _firstPull = true;
 
   @override
   void initState() {
     super.initState();
     AppNotificationsStore.instance.addListener(_onStoreChanged);
+    NotificationSoundController.instance.ensureLoaded();
     _seedAndRefresh();
+    _startPolling();
   }
 
   @override
   void dispose() {
+    _poll?.cancel();
     AppNotificationsStore.instance.removeListener(_onStoreChanged);
     super.dispose();
   }
@@ -37,6 +47,25 @@ class _NotificationsBellState extends State<NotificationsBell> {
     final service = NewsBackedNotificationsService(newsRepository: _newsRepository);
     await AppNotificationsStore.instance.ensureSeeded(service);
     _onStoreChanged();
+  }
+
+  /// Polls the backend push feed so notifications raised elsewhere (e.g. the
+  /// admin portal's "Notify everyone") arrive live without a restart.
+  void _startPolling() {
+    _pullApi();
+    _poll = Timer.periodic(const Duration(seconds: 4), (_) => _pullApi());
+  }
+
+  Future<void> _pullApi() async {
+    final incoming = await _apiNotifications.fetch();
+    if (incoming.isEmpty) return;
+    final added = AppNotificationsStore.instance.mergeApi(incoming);
+    // Chime only on genuine new arrivals, never on the first poll that loads
+    // the existing backlog when the app opens.
+    if (added > 0 && !_firstPull) {
+      await NotificationSoundController.instance.chime();
+    }
+    _firstPull = false;
   }
 
   void _onStoreChanged() {

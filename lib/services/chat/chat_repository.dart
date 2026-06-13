@@ -26,6 +26,18 @@ import '../api/token_provider.dart';
 /// Deterministic placeholder portrait for a given officer or group id.
 String officerAvatar(String id) => 'https://i.pravatar.cc/200?u=$id';
 
+/// Who is currently typing in a thread, as reported by the backend.
+class ChatTypingState {
+  const ChatTypingState({required this.isTyping, this.usernames = const []});
+
+  const ChatTypingState.idle()
+      : isTyping = false,
+        usernames = const [];
+
+  final bool isTyping;
+  final List<String> usernames;
+}
+
 /// Contract for loading and mutating officer conversations.
 abstract class ChatRepository {
   /// Returns all conversations, sorted descending by last-message time.
@@ -119,6 +131,11 @@ abstract class ChatRepository {
   /// callers need not await the result.
   Future<void> sendTyping(String conversationId) =>
       throw UnsupportedError('This repository does not support typing indicators.');
+
+  /// Returns who (other than the current user) is typing in the thread right
+  /// now. Repositories without live typing report nobody.
+  Future<ChatTypingState> fetchTyping(String conversationId) =>
+      Future.value(const ChatTypingState.idle());
 
   Future<void> markMessageRead(String conversationId, String messageId) =>
       throw UnsupportedError(
@@ -361,6 +378,10 @@ class InMemoryChatRepository implements ChatRepository {
   Future<void> sendTyping(String conversationId) async {
     // No-op: no network layer to notify.
   }
+
+  @override
+  Future<ChatTypingState> fetchTyping(String conversationId) async =>
+      const ChatTypingState.idle();
 
   @override
   Future<void> markMessageRead(
@@ -940,6 +961,23 @@ class HttpChatRepository implements ChatRepository {
   Future<void> sendTyping(String conversationId) async {
     final uri = _resolve('/chat/conversations/$conversationId/typing');
     await _postVoid(uri);
+  }
+
+  @override
+  Future<ChatTypingState> fetchTyping(String conversationId) async {
+    final uri = _resolve('/chat/conversations/$conversationId/typing');
+    try {
+      final body = await _getJson(uri);
+      final usernames = (body['usernames'] as List<dynamic>? ?? const [])
+          .map((entry) => entry.toString())
+          .toList(growable: false);
+      return ChatTypingState(
+        isTyping: body['is_typing'] as bool? ?? usernames.isNotEmpty,
+        usernames: usernames,
+      );
+    } catch (_) {
+      return const ChatTypingState.idle();
+    }
   }
 
   @override

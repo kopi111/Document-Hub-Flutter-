@@ -1,12 +1,13 @@
-// INTEGRATION: Replace EmailLoginScreen with LdapLoginScreen as the app and chat
-// entry gate. Construct with HttpAuthService backed by the shared Session instance;
-// set onSignedIn to return ServicesHomeScreen() (or ChatListScreen for the chat gate).
-
 import 'package:flutter/material.dart';
 
 import '../../services/auth/auth_service.dart';
-import '../../theme/nam_style.dart';
+import '../../theme/hub_style.dart';
 
+/// JCF network (AD/LDAP) sign-in — the app's front page.
+///
+/// Authenticates against the backend `/v1/auth/login` endpoint (which binds to
+/// Active Directory) via the injected [AuthService]. Styled to match the Hub
+/// design system: navy→indigo gradient hero, soft white card, blue primary.
 class LdapLoginScreen extends StatefulWidget {
   const LdapLoginScreen({
     super.key,
@@ -17,7 +18,6 @@ class LdapLoginScreen extends StatefulWidget {
   final AuthService authService;
 
   /// Builds the destination screen after a successful sign-in.
-  /// The screen calls [Navigator.pushReplacement] with the returned widget.
   final Widget Function(AuthSession session) onSignedIn;
 
   @override
@@ -55,9 +55,7 @@ class _LdapLoginScreenState extends State<LdapLoginScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => widget.onSignedIn(session),
-        ),
+        MaterialPageRoute<void>(builder: (_) => widget.onSignedIn(session)),
       );
     } on AuthException catch (e) {
       if (!mounted) return;
@@ -72,95 +70,112 @@ class _LdapLoginScreenState extends State<LdapLoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Theme(
-      data: NamStyle.theme(),
-      child: Scaffold(
-        body: SafeArea(
-          child: Center(
+    return Scaffold(
+      backgroundColor: HubStyle.pageBackground,
+      body: Column(
+        children: [
+          const _Hero(),
+          Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(
-                horizontal: NamStyle.pageInset,
-                vertical: 32,
-              ),
-              child: _SignInCard(
-                formKey: _formKey,
-                usernameController: _username,
-                passwordController: _password,
-                obscurePassword: _obscurePassword,
-                signingIn: _signingIn,
-                error: _error,
-                onToggleObscure: () =>
-                    setState(() => _obscurePassword = !_obscurePassword),
-                onSignIn: _signIn,
-                validateNonEmpty: _requireNonEmpty,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Transform.translate(
+                    offset: const Offset(0, -28),
+                    child: _buildCard(),
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
-}
 
-class _SignInCard extends StatelessWidget {
-  const _SignInCard({
-    required this.formKey,
-    required this.usernameController,
-    required this.passwordController,
-    required this.obscurePassword,
-    required this.signingIn,
-    required this.error,
-    required this.onToggleObscure,
-    required this.onSignIn,
-    required this.validateNonEmpty,
-  });
-
-  final GlobalKey<FormState> formKey;
-  final TextEditingController usernameController;
-  final TextEditingController passwordController;
-  final bool obscurePassword;
-  final bool signingIn;
-  final String? error;
-  final VoidCallback onToggleObscure;
-  final VoidCallback onSignIn;
-  final String? Function(String?) validateNonEmpty;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildCard() {
     return Container(
-      constraints: const BoxConstraints(maxWidth: 420),
       decoration: BoxDecoration(
-        color: NamStyle.surface,
-        borderRadius: BorderRadius.circular(NamStyle.cardRadius),
-        border: Border.all(color: NamStyle.hairline),
+        color: HubStyle.cardSurface,
+        borderRadius: BorderRadius.circular(HubStyle.cardRadius),
+        boxShadow: HubStyle.cardShadow,
       ),
-      padding: const EdgeInsets.all(28),
+      padding: const EdgeInsets.fromLTRB(22, 26, 22, 22),
       child: Form(
-        key: formKey,
+        key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const _LogoHeader(),
-            const SizedBox(height: 28),
-            _UsernameField(
-              controller: usernameController,
-              validator: validateNonEmpty,
+            const Text(
+              'Welcome back',
+              style: TextStyle(
+                color: HubStyle.textPrimary,
+                fontSize: 19,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Use your JCF network credentials',
+              style: TextStyle(color: HubStyle.textSecondary, fontSize: 13),
+            ),
+            const SizedBox(height: 22),
+            const _FieldLabel('Username'),
+            const SizedBox(height: 7),
+            _Field(
+              controller: _username,
+              validator: _requireNonEmpty,
+              hint: 'firstname.lastname@jcf.gov.jm',
+              icon: Icons.person_outline,
+              textInputAction: TextInputAction.next,
             ),
             const SizedBox(height: 16),
-            _PasswordField(
-              controller: passwordController,
-              obscure: obscurePassword,
-              onToggleObscure: onToggleObscure,
-              validator: validateNonEmpty,
+            const _FieldLabel('Password'),
+            const SizedBox(height: 7),
+            _Field(
+              controller: _password,
+              validator: _requireNonEmpty,
+              hint: 'Network password',
+              icon: Icons.lock_outline,
+              obscure: _obscurePassword,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _signIn(),
+              suffix: IconButton(
+                icon: Icon(
+                  _obscurePassword
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: HubStyle.textSecondary,
+                  size: 20,
+                ),
+                onPressed: () =>
+                    setState(() => _obscurePassword = !_obscurePassword),
+              ),
             ),
-            if (error != null) ...[
-              const SizedBox(height: 12),
-              _ErrorBanner(message: error!),
+            if (_error != null) ...[
+              const SizedBox(height: 14),
+              _ErrorBanner(message: _error!),
             ],
-            const SizedBox(height: 24),
-            _SignInButton(signingIn: signingIn, onSignIn: onSignIn),
-            const SizedBox(height: 20),
-            const _NetworkNote(),
+            const SizedBox(height: 22),
+            _SignInButton(signingIn: _signingIn, onPressed: _signIn),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.lock_outline,
+                    size: 13, color: HubStyle.textSecondary),
+                const SizedBox(width: 6),
+                Flexible(
+                  child: Text(
+                    'Authorised JCF personnel on the JCF network only.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: HubStyle.textSecondary, fontSize: 11.5),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -168,105 +183,149 @@ class _SignInCard extends StatelessWidget {
   }
 }
 
-class _LogoHeader extends StatelessWidget {
-  const _LogoHeader();
+/// Gradient hero band with the force crest and branding.
+class _Hero extends StatelessWidget {
+  const _Hero();
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          width: 56,
-          height: 56,
-          decoration: BoxDecoration(
-            color: NamStyle.gold.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: NamStyle.gold.withValues(alpha: 0.4),
+    final topInset = MediaQuery.paddingOf(context).top;
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(gradient: HubStyle.headerGradient),
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomLeft,
+                  end: Alignment.topRight,
+                  colors: [
+                    Colors.white.withValues(alpha: 0.0),
+                    Colors.white.withValues(alpha: 0.06),
+                  ],
+                ),
+              ),
             ),
           ),
-          child: const Icon(
-            Icons.shield_outlined,
-            size: 28,
-            color: NamStyle.gold,
+          Column(
+            children: [
+              SizedBox(height: topInset + 40),
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(20),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.4)),
+                ),
+                child: const Icon(Icons.shield_outlined,
+                    color: Colors.white, size: 38),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'JCF Document Hub',
+                style: TextStyle(
+                  color: HubStyle.onGradient,
+                  fontSize: 23,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 5),
+              Text(
+                'Secure access for serving officers',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.82),
+                  fontSize: 13.5,
+                ),
+              ),
+              const SizedBox(height: 46),
+            ],
           ),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          'JCF Sign In',
-          style: NamStyle.title(size: 22, weight: FontWeight.w700),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          'Use your JCF network credentials',
-          style: NamStyle.body(size: 13, color: NamStyle.textSecondary),
-          textAlign: TextAlign.center,
-        ),
-      ],
-    );
-  }
-}
-
-class _UsernameField extends StatelessWidget {
-  const _UsernameField({required this.controller, required this.validator});
-
-  final TextEditingController controller;
-  final String? Function(String?) validator;
-
-  @override
-  Widget build(BuildContext context) {
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      keyboardType: TextInputType.text,
-      autocorrect: false,
-      textInputAction: TextInputAction.next,
-      style: NamStyle.body(color: NamStyle.textPrimary),
-      decoration: _inputDecoration(
-        hintText: 'firstname.lastname',
-        labelText: 'Username',
-        prefixIcon: Icons.person_outline,
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: HubStyle.accentBar(),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _PasswordField extends StatelessWidget {
-  const _PasswordField({
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: const TextStyle(
+          color: HubStyle.textPrimary,
+          fontSize: 12.5,
+          fontWeight: FontWeight.w600,
+        ),
+      );
+}
+
+class _Field extends StatelessWidget {
+  const _Field({
     required this.controller,
-    required this.obscure,
-    required this.onToggleObscure,
     required this.validator,
+    required this.hint,
+    required this.icon,
+    this.obscure = false,
+    this.suffix,
+    this.textInputAction,
+    this.onSubmitted,
   });
 
   final TextEditingController controller;
-  final bool obscure;
-  final VoidCallback onToggleObscure;
   final String? Function(String?) validator;
+  final String hint;
+  final IconData icon;
+  final bool obscure;
+  final Widget? suffix;
+  final TextInputAction? textInputAction;
+  final ValueChanged<String>? onSubmitted;
 
   @override
   Widget build(BuildContext context) {
+    const accent = Color(0xFF2D6CDF);
+    OutlineInputBorder border(Color color, double width) => OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: color, width: width),
+        );
     return TextFormField(
       controller: controller,
       validator: validator,
       obscureText: obscure,
-      textInputAction: TextInputAction.done,
-      style: NamStyle.body(color: NamStyle.textPrimary),
-      decoration: _inputDecoration(
-        hintText: 'Network password',
-        labelText: 'Password',
-        prefixIcon: Icons.lock_outline,
-      ).copyWith(
-        suffixIcon: IconButton(
-          icon: Icon(
-            obscure
-                ? Icons.visibility_outlined
-                : Icons.visibility_off_outlined,
-            color: NamStyle.textSecondary,
-            size: 20,
-          ),
-          onPressed: onToggleObscure,
+      autocorrect: false,
+      enableSuggestions: false,
+      textInputAction: textInputAction,
+      onFieldSubmitted: onSubmitted,
+      style: const TextStyle(color: HubStyle.textPrimary, fontSize: 14.5),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle: TextStyle(
+          color: HubStyle.textSecondary.withValues(alpha: 0.8),
+          fontSize: 13.5,
         ),
+        prefixIcon: Icon(icon, size: 20, color: HubStyle.textSecondary),
+        suffixIcon: suffix,
+        filled: true,
+        fillColor: const Color(0xFFF1F5F9),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
+        border: border(const Color(0xFFE2E8F0), 1),
+        enabledBorder: border(const Color(0xFFE2E8F0), 1),
+        focusedBorder: border(accent, 1.6),
+        errorBorder: border(const Color(0xFFE0414C), 1),
+        focusedErrorBorder: border(const Color(0xFFE0414C), 1.6),
       ),
     );
   }
@@ -279,21 +338,22 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const danger = Color(0xFFE0414C);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       decoration: BoxDecoration(
-        color: NamStyle.alert.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: NamStyle.alert.withValues(alpha: 0.4)),
+        color: danger.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: danger.withValues(alpha: 0.35)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline, size: 16, color: NamStyle.alert),
+          const Icon(Icons.error_outline, size: 17, color: danger),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: NamStyle.body(size: 13, color: NamStyle.alert),
+              style: const TextStyle(color: danger, fontSize: 13),
             ),
           ),
         ],
@@ -303,84 +363,47 @@ class _ErrorBanner extends StatelessWidget {
 }
 
 class _SignInButton extends StatelessWidget {
-  const _SignInButton({required this.signingIn, required this.onSignIn});
+  const _SignInButton({required this.signingIn, required this.onPressed});
 
   final bool signingIn;
-  final VoidCallback onSignIn;
+  final VoidCallback onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton(
-      onPressed: signingIn ? null : onSignIn,
-      style: FilledButton.styleFrom(
-        backgroundColor: NamStyle.gold,
-        foregroundColor: NamStyle.onGold,
-        padding: const EdgeInsets.symmetric(vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(10),
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(12),
+      child: Ink(
+        decoration: BoxDecoration(
+          gradient: HubStyle.headerGradient,
+          borderRadius: BorderRadius.circular(12),
         ),
-        textStyle: NamStyle.title(size: 15, weight: FontWeight.w600),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(12),
+          onTap: signingIn ? null : onPressed,
+          child: Container(
+            height: 52,
+            alignment: Alignment.center,
+            child: signingIn
+                ? const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.2,
+                      color: Colors.white,
+                    ),
+                  )
+                : const Text(
+                    'Sign in',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+          ),
+        ),
       ),
-      child: signingIn
-          ? const SizedBox(
-              width: 20,
-              height: 20,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: NamStyle.onGold,
-              ),
-            )
-          : const Text('Sign in'),
     );
   }
 }
-
-class _NetworkNote extends StatelessWidget {
-  const _NetworkNote();
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'Access is restricted to authorised JCF personnel on the JCF network.',
-      style: NamStyle.body(size: 11, color: NamStyle.textSecondary),
-      textAlign: TextAlign.center,
-    );
-  }
-}
-
-InputDecoration _inputDecoration({
-  required String hintText,
-  required String labelText,
-  required IconData prefixIcon,
-}) =>
-    InputDecoration(
-      hintText: hintText,
-      labelText: labelText,
-      labelStyle: NamStyle.body(size: 13, color: NamStyle.textSecondary),
-      hintStyle: NamStyle.body(size: 13, color: NamStyle.textSecondary),
-      prefixIcon: Icon(prefixIcon, size: 20, color: NamStyle.textSecondary),
-      filled: true,
-      fillColor: NamStyle.background,
-      contentPadding:
-          const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: NamStyle.hairline),
-      ),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: NamStyle.hairline),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: NamStyle.gold, width: 1.5),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: NamStyle.alert),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: const BorderSide(color: NamStyle.alert, width: 1.5),
-      ),
-    );
