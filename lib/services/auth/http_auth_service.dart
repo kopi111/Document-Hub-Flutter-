@@ -50,6 +50,30 @@ class HttpAuthService implements AuthService {
     return session;
   }
 
+  /// Verifies the current session token is still accepted by the server (e.g.
+  /// it was not invalidated by an API restart or expiry). Returns false only on
+  /// an explicit auth rejection (401/403); network/transient errors return true
+  /// so an offline officer is not signed out of a still-valid session.
+  Future<bool> hasValidSession() async {
+    final token = _session.current?.token;
+    if (token == null || token.isEmpty) return false;
+    try {
+      final response = await _httpClient
+          .get(_resolve('/auth/me'), headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          })
+          .timeout(_config.timeout);
+      return response.statusCode != 401 && response.statusCode != 403;
+    } on SocketException {
+      return true;
+    } on TimeoutException {
+      return true;
+    } catch (_) {
+      return true;
+    }
+  }
+
   @override
   Future<void> signOut() async => _session.clear();
 

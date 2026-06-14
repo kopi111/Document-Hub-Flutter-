@@ -33,8 +33,20 @@ class _FirstLaunchGateState extends State<FirstLaunchGate> {
 
   Future<void> _restoreSession() async {
     final session = await Session.shared.restore();
+    if (session == null) {
+      if (mounted) setState(() => _state = _EntryState.login);
+      return;
+    }
+    // A persisted token can be stale (API restart / expiry). Validate it; if the
+    // server rejects it, clear the dead session and send the officer to sign in.
+    final valid = await _authService.hasValidSession();
     if (!mounted) return;
-    setState(() => _state = session != null ? _EntryState.ready : _EntryState.login);
+    if (valid) {
+      setState(() => _state = _EntryState.ready);
+    } else {
+      Session.shared.clear();
+      setState(() => _state = _EntryState.login);
+    }
   }
 
   @override
